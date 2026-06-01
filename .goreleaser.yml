@@ -23,6 +23,8 @@ builds:
       - -s -w
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
+changelog:
+  use: github-native
 dockers_v2:
   - ids:
       - gateway-lens
