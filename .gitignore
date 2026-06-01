@@ -1,0 +1,10 @@
+# Binaries for programs and plugins
+bin/
+
+# Test coverage files
+coverage.out
+cover.html
+
+# Frontend dependencies and build output
+web/dashboard/node_modules/
+internal/app/dashboardui/dist/

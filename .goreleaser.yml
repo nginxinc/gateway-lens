@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+env:
+  - CGO_ENABLED=0
+before:
+  hooks:
+    - go mod tidy
+    - make dashboard-build
+builds:
+  - id: gateway-lens
+    main: ./cmd/gateway-lens
+    binary: gateway-lens
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+dockers_v2:
+  - ids:
+      - gateway-lens
+    images:
+      - ghcr.io/sjberman/gateway-lens
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .IsSnapshot }}latest{{ end }}"
