@@ -4,6 +4,8 @@ Gateway Lens is a diagnostic tool that watches Kubernetes
 [Gateway API](https://gateway-api.sigs.k8s.io/) resources in a cluster and
 presents them as an interactive topology graph in a browser dashboard.
 
+Check out the [Releases page](https://github.com/sjberman/gateway-lens/releases/latest) for the latest binary artifacts.
+
 ## Architecture
 
 The Go process uses **controller-runtime** to watch Gateway API resources and
@@ -16,7 +18,7 @@ built with Vite. It receives change notifications via Server-Sent Events and
 fetches `/data` on demand, rendering the topology using React Flow with
 automatic dagre layout.
 
-## Prerequisites
+## Prerequisites for building and running
 
 - **Go 1.26+**
 - **Node.js** (LTS) and **npm**
