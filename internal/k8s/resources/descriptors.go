@@ -7,7 +7,6 @@ import (
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/sjberman/gateway-lens/internal/topology"
 )
@@ -104,34 +103,34 @@ func resourceDescriptors() []resourceDescriptor { //nolint:funlen // descriptor 
 		},
 		{
 			name:   "resources-TCPRoute",
-			object: &gatewayv1alpha2.TCPRoute{},
+			object: &gatewayv1.TCPRoute{},
 			list: newListFunc(
-				func() *gatewayv1alpha2.TCPRouteList { return &gatewayv1alpha2.TCPRouteList{} },
-				func(l *gatewayv1alpha2.TCPRouteList) []gatewayv1alpha2.TCPRoute { return l.Items },
-				func(v *gatewayv1alpha2.TCPRoute) client.Object { return v.DeepCopy() },
+				func() *gatewayv1.TCPRouteList { return &gatewayv1.TCPRouteList{} },
+				func(l *gatewayv1.TCPRouteList) []gatewayv1.TCPRoute { return l.Items },
+				func(v *gatewayv1.TCPRoute) client.Object { return v.DeepCopy() },
 				"tcp routes",
 			),
 			projectTo: func(resources *topology.GatewayAPIResources, objects []client.Object, logger logr.Logger) {
 				resources.TCPRoutes = projectValues(
 					objects,
-					func(item *gatewayv1alpha2.TCPRoute) gatewayv1alpha2.TCPRoute { return *item },
+					func(item *gatewayv1.TCPRoute) gatewayv1.TCPRoute { return *item },
 					logger,
 				)
 			},
 		},
 		{
 			name:   "resources-UDPRoute",
-			object: &gatewayv1alpha2.UDPRoute{},
+			object: &gatewayv1.UDPRoute{},
 			list: newListFunc(
-				func() *gatewayv1alpha2.UDPRouteList { return &gatewayv1alpha2.UDPRouteList{} },
-				func(l *gatewayv1alpha2.UDPRouteList) []gatewayv1alpha2.UDPRoute { return l.Items },
-				func(v *gatewayv1alpha2.UDPRoute) client.Object { return v.DeepCopy() },
+				func() *gatewayv1.UDPRouteList { return &gatewayv1.UDPRouteList{} },
+				func(l *gatewayv1.UDPRouteList) []gatewayv1.UDPRoute { return l.Items },
+				func(v *gatewayv1.UDPRoute) client.Object { return v.DeepCopy() },
 				"udp routes",
 			),
 			projectTo: func(resources *topology.GatewayAPIResources, objects []client.Object, logger logr.Logger) {
 				resources.UDPRoutes = projectValues(
 					objects,
-					func(item *gatewayv1alpha2.UDPRoute) gatewayv1alpha2.UDPRoute { return *item },
+					func(item *gatewayv1.UDPRoute) gatewayv1.UDPRoute { return *item },
 					logger,
 				)
 			},

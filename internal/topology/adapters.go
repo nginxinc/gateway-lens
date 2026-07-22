@@ -3,7 +3,6 @@ package topology
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 )
 
 // PolicyType describes whether a policy applies directly to its target or is inherited.
@@ -51,9 +50,9 @@ type GatewayAPIResources struct {
 	// TLSRoutes holds the watched TLSRoute resources.
 	TLSRoutes          []gatewayv1.TLSRoute
 	// TCPRoutes holds the watched TCPRoute resources.
-	TCPRoutes          []gatewayv1alpha2.TCPRoute
+	TCPRoutes          []gatewayv1.TCPRoute
 	// UDPRoutes holds the watched UDPRoute resources.
-	UDPRoutes          []gatewayv1alpha2.UDPRoute
+	UDPRoutes          []gatewayv1.UDPRoute
 	// ReferenceGrants holds the watched ReferenceGrant resources.
 	ReferenceGrants    []gatewayv1.ReferenceGrant
 	// BackendTLSPolicies holds the watched BackendTLSPolicy resources.

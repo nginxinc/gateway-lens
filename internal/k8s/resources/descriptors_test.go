@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/sjberman/gateway-lens/internal/k8s/resources"
 	"github.com/sjberman/gateway-lens/internal/topology"
@@ -130,8 +129,8 @@ func TestDescriptorObjectTypes(t *testing.T) {
 		&gatewayv1.HTTPRoute{},
 		&gatewayv1.GRPCRoute{},
 		&gatewayv1.TLSRoute{},
-		&gatewayv1alpha2.TCPRoute{},
-		&gatewayv1alpha2.UDPRoute{},
+			&gatewayv1.TCPRoute{},
+			&gatewayv1.UDPRoute{},
 		&gatewayv1.ReferenceGrant{},
 		&gatewayv1.BackendTLSPolicy{},
 		&gatewayv1.ListenerSet{},
@@ -216,7 +215,7 @@ func TestDescriptorProjectTo(t *testing.T) { //nolint:funlen // table-driven tes
 			name: "TCPRoute",
 			idx:  5,
 			objects: []client.Object{
-				&gatewayv1alpha2.TCPRoute{ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "tcp-1"}},
+				&gatewayv1.TCPRoute{ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "tcp-1"}},
 			},
 			validate: func(r *topology.GatewayAPIResources) {
 				g.Expect(r.TCPRoutes).To(HaveLen(1))
@@ -227,7 +226,7 @@ func TestDescriptorProjectTo(t *testing.T) { //nolint:funlen // table-driven tes
 			name: "UDPRoute",
 			idx:  6,
 			objects: []client.Object{
-				&gatewayv1alpha2.UDPRoute{ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "udp-1"}},
+				&gatewayv1.UDPRoute{ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "udp-1"}},
 			},
 			validate: func(r *topology.GatewayAPIResources) {
 				g.Expect(r.UDPRoutes).To(HaveLen(1))

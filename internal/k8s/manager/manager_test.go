@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/sjberman/gateway-lens/internal/k8s/manager"
 )
@@ -30,14 +29,6 @@ func TestNewGatewayAPIScheme(t *testing.T) {
 	gatewayV1GV := schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}
 	g.Expect(scheme.IsVersionRegistered(gatewayV1GV)).To(BeTrue(),
 		"gateway v1 group version should be registered")
-
-	// Gateway API v1alpha2 types should be registered.
-	gatewayV1A2GV := schema.GroupVersion{
-		Group:   gatewayv1alpha2.GroupVersion.Group,
-		Version: gatewayv1alpha2.GroupVersion.Version,
-	}
-	g.Expect(scheme.IsVersionRegistered(gatewayV1A2GV)).To(BeTrue(),
-		"gateway v1alpha2 group version should be registered")
 }
 
 func TestNewGatewayAPISchemeKnownTypes(t *testing.T) {
@@ -65,11 +56,11 @@ func TestNewGatewayAPISchemeKnownTypes(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(gvks).ToNot(BeEmpty(), "GatewayClass should be a known type")
 
-	gvks, _, err = scheme.ObjectKinds(&gatewayv1alpha2.TCPRoute{})
+	gvks, _, err = scheme.ObjectKinds(&gatewayv1.TCPRoute{})
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(gvks).ToNot(BeEmpty(), "TCPRoute should be a known type")
 
-	gvks, _, err = scheme.ObjectKinds(&gatewayv1alpha2.UDPRoute{})
+	gvks, _, err = scheme.ObjectKinds(&gatewayv1.UDPRoute{})
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(gvks).ToNot(BeEmpty(), "UDPRoute should be a known type")
 

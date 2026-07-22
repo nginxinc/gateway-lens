@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 	"sigs.k8s.io/yaml"
 
 	"github.com/sjberman/gateway-lens/internal/app/dashboardui"
@@ -296,7 +295,6 @@ type manifestEntry struct {
 // manifestEntries returns the ordered list of resource types whose manifests should be generated.
 func manifestEntries(resources topology.GatewayAPIResources) []manifestEntry {
 	v1 := gatewayv1.GroupVersion.String()
-	v1a2 := gatewayv1alpha2.GroupVersion.String()
 
 	return []manifestEntry{
 		{"GatewayClass", addManifestsFunc(v1, "GatewayClass", resources.GatewayClasses)},
@@ -304,8 +302,8 @@ func manifestEntries(resources topology.GatewayAPIResources) []manifestEntry {
 		{"HTTPRoute", addManifestsFunc(v1, "HTTPRoute", resources.HTTPRoutes)},
 		{"GRPCRoute", addManifestsFunc(v1, "GRPCRoute", resources.GRPCRoutes)},
 		{"TLSRoute", addManifestsFunc(v1, "TLSRoute", resources.TLSRoutes)},
-		{"TCPRoute", addManifestsFunc(v1a2, "TCPRoute", resources.TCPRoutes)},
-		{"UDPRoute", addManifestsFunc(v1a2, "UDPRoute", resources.UDPRoutes)},
+		{"TCPRoute", addManifestsFunc(v1, "TCPRoute", resources.TCPRoutes)},
+		{"UDPRoute", addManifestsFunc(v1, "UDPRoute", resources.UDPRoutes)},
 		{"ReferenceGrant", addManifestsFunc(v1, "ReferenceGrant", resources.ReferenceGrants)},
 		{"BackendTLSPolicy", addManifestsFunc(v1, "BackendTLSPolicy", resources.BackendTLSPolicies)},
 		{"ListenerSet", addManifestsFunc(v1, "ListenerSet", resources.ListenerSets)},

@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/sjberman/gateway-lens/internal/topology"
 )
@@ -248,15 +247,15 @@ func tcpRouteCase() translateGatewayAPITestCase {
 	return translateGatewayAPITestCase{
 		name: "translates tcp route parent and backend references",
 		resources: topology.GatewayAPIResources{
-			TCPRoutes: []gatewayv1alpha2.TCPRoute{
+			TCPRoutes: []gatewayv1.TCPRoute{
 				{
 					ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: tcpRouteName},
-					Spec: gatewayv1alpha2.TCPRouteSpec{
-						CommonRouteSpec: gatewayv1alpha2.CommonRouteSpec{
-							ParentRefs: []gatewayv1alpha2.ParentReference{{Name: gatewayv1alpha2.ObjectName(nameEdge)}},
+					Spec: gatewayv1.TCPRouteSpec{
+						CommonRouteSpec: gatewayv1.CommonRouteSpec{
+							ParentRefs: []gatewayv1.ParentReference{{Name: gatewayv1.ObjectName(nameEdge)}},
 						},
-						Rules: []gatewayv1alpha2.TCPRouteRule{
-							{BackendRefs: []gatewayv1alpha2.BackendRef{serviceBackendObjectRefV1Alpha2(tcpBackendName)}},
+						Rules: []gatewayv1.TCPRouteRule{
+							{BackendRefs: []gatewayv1.BackendRef{serviceBackendObjectRefV1(tcpBackendName)}},
 						},
 					},
 				},
@@ -278,15 +277,15 @@ func udpRouteCase() translateGatewayAPITestCase {
 	return translateGatewayAPITestCase{
 		name: "translates udp route parent and backend references",
 		resources: topology.GatewayAPIResources{
-			UDPRoutes: []gatewayv1alpha2.UDPRoute{
+			UDPRoutes: []gatewayv1.UDPRoute{
 				{
 					ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: udpRouteName},
-					Spec: gatewayv1alpha2.UDPRouteSpec{
-						CommonRouteSpec: gatewayv1alpha2.CommonRouteSpec{
-							ParentRefs: []gatewayv1alpha2.ParentReference{{Name: gatewayv1alpha2.ObjectName(nameEdge)}},
+					Spec: gatewayv1.UDPRouteSpec{
+						CommonRouteSpec: gatewayv1.CommonRouteSpec{
+							ParentRefs: []gatewayv1.ParentReference{{Name: gatewayv1.ObjectName(nameEdge)}},
 						},
-						Rules: []gatewayv1alpha2.UDPRouteRule{
-							{BackendRefs: []gatewayv1alpha2.BackendRef{serviceBackendObjectRefV1Alpha2(udpBackendName)}},
+						Rules: []gatewayv1.UDPRouteRule{
+							{BackendRefs: []gatewayv1.BackendRef{serviceBackendObjectRefV1(udpBackendName)}},
 						},
 					},
 				},
@@ -387,9 +386,9 @@ func serviceBackendObjectRef(name string) gatewayv1.BackendRef {
 	}
 }
 
-func serviceBackendObjectRefV1Alpha2(name string) gatewayv1alpha2.BackendRef {
-	return gatewayv1alpha2.BackendRef{
-		BackendObjectReference: gatewayv1alpha2.BackendObjectReference{Name: gatewayv1alpha2.ObjectName(name)},
+func serviceBackendObjectRefV1(name string) gatewayv1.BackendRef {
+	return gatewayv1.BackendRef{
+		BackendObjectReference: gatewayv1.BackendObjectReference{Name: gatewayv1.ObjectName(name)},
 	}
 }
 

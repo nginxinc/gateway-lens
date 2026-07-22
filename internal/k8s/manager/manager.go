@@ -18,7 +18,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/sjberman/gateway-lens/internal/app"
 	"github.com/sjberman/gateway-lens/internal/k8s/resources"
@@ -144,10 +143,6 @@ func newGatewayAPIScheme() (*runtime.Scheme, error) {
 
 	if err := gatewayv1.Install(scheme); err != nil {
 		return nil, fmt.Errorf("adding gateway v1 scheme: %w", err)
-	}
-
-	if err := gatewayv1alpha2.Install(scheme); err != nil {
-		return nil, fmt.Errorf("adding gateway v1alpha2 scheme: %w", err)
 	}
 
 	return scheme, nil

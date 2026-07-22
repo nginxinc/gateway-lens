@@ -117,7 +117,7 @@ func run(ctx context.Context, port int, logLevel string, namespaces []string) er
 
 	host := "127.0.0.1"
 	if isContainer() {
-		host = "0.0.0.0" //nolint:gosec // intentional bind to all interfaces in containers
+		host = "0.0.0.0"
 	}
 
 	listenAddr := fmt.Sprintf("%s:%d", host, port)

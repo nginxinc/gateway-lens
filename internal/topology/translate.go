@@ -4,7 +4,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 )
 
 const gatewayAPIGroup = gatewayv1.GroupName
@@ -373,19 +372,19 @@ func (b *baseSnapshotBuilder) addTLSRouteNodes(tlsRoutes []gatewayv1.TLSRoute) {
 // addTCPRouteNodes adds TCPRoute nodes with parent/backend edges and conditions.
 //
 //nolint:dupl // route methods share structure but differ in type-specific callbacks
-func (b *baseSnapshotBuilder) addTCPRouteNodes(tcpRoutes []gatewayv1alpha2.TCPRoute) {
+func (b *baseSnapshotBuilder) addTCPRouteNodes(tcpRoutes []gatewayv1.TCPRoute) {
 	addRoutes(
 		b,
 		tcpRoutes,
 		"TCPRoute",
-		func(route gatewayv1alpha2.TCPRoute) string { return route.Namespace },
-		func(route gatewayv1alpha2.TCPRoute) string { return route.Name },
-		func(route gatewayv1alpha2.TCPRoute, onParent func(ResourceRef)) {
+		func(route gatewayv1.TCPRoute) string { return route.Namespace },
+		func(route gatewayv1.TCPRoute) string { return route.Name },
+		func(route gatewayv1.TCPRoute, onParent func(ResourceRef)) {
 			for _, parentRef := range route.Spec.ParentRefs {
 				onParent(resolveParentRef(route.Namespace, parentRef))
 			}
 		},
-		func(route gatewayv1alpha2.TCPRoute, onBackend func(ResourceRef)) {
+		func(route gatewayv1.TCPRoute, onBackend func(ResourceRef)) {
 			for _, rule := range route.Spec.Rules {
 				for _, backendRef := range rule.BackendRefs {
 					onBackend(resolveBackendRef(route.Namespace, backendRef))
@@ -393,7 +392,7 @@ func (b *baseSnapshotBuilder) addTCPRouteNodes(tcpRoutes []gatewayv1alpha2.TCPRo
 			}
 		},
 		nil, // TCP routes do not have filters
-		func(route gatewayv1alpha2.TCPRoute) []metav1.Condition {
+		func(route gatewayv1.TCPRoute) []metav1.Condition {
 			return flattenRouteParentConditions(route.Status.Parents)
 		},
 	)
@@ -402,19 +401,19 @@ func (b *baseSnapshotBuilder) addTCPRouteNodes(tcpRoutes []gatewayv1alpha2.TCPRo
 // addUDPRouteNodes adds UDPRoute nodes with parent/backend edges and conditions.
 //
 //nolint:dupl // route methods share structure but differ in type-specific callbacks
-func (b *baseSnapshotBuilder) addUDPRouteNodes(udpRoutes []gatewayv1alpha2.UDPRoute) {
+func (b *baseSnapshotBuilder) addUDPRouteNodes(udpRoutes []gatewayv1.UDPRoute) {
 	addRoutes(
 		b,
 		udpRoutes,
 		"UDPRoute",
-		func(route gatewayv1alpha2.UDPRoute) string { return route.Namespace },
-		func(route gatewayv1alpha2.UDPRoute) string { return route.Name },
-		func(route gatewayv1alpha2.UDPRoute, onParent func(ResourceRef)) {
+		func(route gatewayv1.UDPRoute) string { return route.Namespace },
+		func(route gatewayv1.UDPRoute) string { return route.Name },
+		func(route gatewayv1.UDPRoute, onParent func(ResourceRef)) {
 			for _, parentRef := range route.Spec.ParentRefs {
 				onParent(resolveParentRef(route.Namespace, parentRef))
 			}
 		},
-		func(route gatewayv1alpha2.UDPRoute, onBackend func(ResourceRef)) {
+		func(route gatewayv1.UDPRoute, onBackend func(ResourceRef)) {
 			for _, rule := range route.Spec.Rules {
 				for _, backendRef := range rule.BackendRefs {
 					onBackend(resolveBackendRef(route.Namespace, backendRef))
@@ -422,7 +421,7 @@ func (b *baseSnapshotBuilder) addUDPRouteNodes(udpRoutes []gatewayv1alpha2.UDPRo
 			}
 		},
 		nil, // UDP routes do not have filters
-		func(route gatewayv1alpha2.UDPRoute) []metav1.Condition {
+		func(route gatewayv1.UDPRoute) []metav1.Condition {
 			return flattenRouteParentConditions(route.Status.Parents)
 		},
 	)
