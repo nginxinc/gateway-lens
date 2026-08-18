@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"sync"
 
@@ -45,6 +46,9 @@ func NewParametersRefStore(runtimeCache cache.Cache, logger logr.Logger) *Parame
 
 // ExcludeGroupKind marks a group/kind pair as already watched, preventing duplicate controller registration.
 func (s *ParametersRefStore) ExcludeGroupKind(group, kind string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.excludedGroupKinds[group+"/"+kind] = struct{}{}
 }
 
@@ -162,7 +166,11 @@ func (s *ParametersRefStore) resolveGVKs(
 	ctx context.Context,
 	groupKinds map[string]schema.GroupVersionKind,
 ) (map[string]schema.GroupVersionKind, error) {
-	return resolveGVKsFromCRDs(ctx, s.cache, groupKinds, s.excludedGroupKinds, "ParametersRef")
+	s.mu.RLock()
+	excluded := maps.Clone(s.excludedGroupKinds)
+	s.mu.RUnlock()
+
+	return resolveGVKsFromCRDs(ctx, s.cache, groupKinds, excluded, "ParametersRef")
 }
 
 // collectGatewayClassParametersRefGVKs extracts ParametersRef GVKs from a GatewayClass.

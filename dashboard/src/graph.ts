@@ -51,7 +51,10 @@ const errorConditionTypes = new Set(['Accepted', 'Programmed', 'ResolvedRefs'])
 
 function bareConditionType(conditionType: string) {
   // Condition types may be prefixed (e.g. "listener/http/Accepted"), so extract the suffix.
-  return conditionType.includes('/') ? conditionType.split('/').pop()! : conditionType
+  if (!conditionType.includes('/')) return conditionType
+
+  const segments = conditionType.split('/')
+  return segments[segments.length - 1]
 }
 
 function isNegativeCondition(condition: {type: string; status: string}) {
@@ -243,8 +246,12 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
   }
 
   const edges = edgeMeta.map((meta) => {
-    const {edge, index, visualEndpoints} = meta
+    const {edge, index, visualEndpoints, sourceSide, targetSide} = meta
     const edgeStyle = relationshipStyle()
+    // Fall back to a deterministic handle name if, for some reason, an index was
+    // not assigned above (should not happen since every edge is processed).
+    const sourceHandle = sourceHandleMap.get(index) ?? `source-${sourceSide}-0`
+    const targetHandle = targetHandleMap.get(index) ?? `target-${targetSide}-0`
 
     return {
       animated: edgeStyle.animated,
@@ -256,10 +263,10 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
       labelStyle: {fill: '#5f5b52', fontSize: 11, fontWeight: 600},
       markerEnd: {type: MarkerType.ArrowClosed, width: 18, height: 18},
       source: visualEndpoints.source,
-      sourceHandle: sourceHandleMap.get(index)!,
+      sourceHandle,
       style: edgeStyle.lineStyle,
       target: visualEndpoints.target,
-      targetHandle: targetHandleMap.get(index)!,
+      targetHandle,
       type: 'smoothstep',
     } satisfies Edge
   })
@@ -475,7 +482,14 @@ export function applyNamespaceGrouping(
 // Gap between namespace group boxes after overlap resolution.
 const namespaceGroupGap = 24
 
-export type GroupRect = {ns: string; x: number; y: number; width: number; height: number; children: Node[]}
+export interface GroupRect {
+  ns: string
+  x: number
+  y: number
+  width: number
+  height: number
+  children: Node[]
+}
 
 // resolveGroupOverlaps pushes namespace group rectangles apart so they never
 // overlap. It iterates until no overlaps remain, shifting the later rectangle

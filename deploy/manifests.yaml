@@ -58,7 +58,7 @@ spec:
       serviceAccountName: gateway-lens
       containers:
         - name: gateway-lens
-          image: ghcr.io/sjberman/gateway-lens:latest
+          image: ghcr.io/nginxinc/gateway-lens:latest
           ports:
             - name: http
               containerPort: 8080

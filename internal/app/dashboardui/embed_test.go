@@ -6,7 +6,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/sjberman/gateway-lens/internal/app/dashboardui"
+	"github.com/nginxinc/gateway-lens/internal/app/dashboardui"
 )
 
 func TestFileSystem(t *testing.T) {

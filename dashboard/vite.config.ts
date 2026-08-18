@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react()],
   build: {
     emptyOutDir: true,
-    outDir: '../../internal/app/dashboardui/dist',
+    outDir: '../internal/app/dashboardui/dist',
   },
 })

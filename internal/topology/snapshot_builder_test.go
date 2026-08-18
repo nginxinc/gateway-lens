@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nginxinc/gateway-lens/internal/topology"
 	. "github.com/onsi/gomega"
-	"github.com/sjberman/gateway-lens/internal/topology"
 )
 
 var errAnnotateFailed = errors.New("annotate failed")

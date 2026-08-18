@@ -48,7 +48,7 @@ For best practices when writing in Go, see the following resources:
 
 ### JavaScript/TypeScript Guidelines
 
-For best practices when writing the [dashboard frontend](web/dashboard), see the following resources:
+For best practices when writing the [dashboard frontend](dashboard), see the following resources:
 - [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)
 - [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
 - [React Rules of Hooks](https://react.dev/reference/rules/rules-of-hooks)

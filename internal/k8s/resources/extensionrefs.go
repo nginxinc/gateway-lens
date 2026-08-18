@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"sync"
 
@@ -44,6 +45,9 @@ func NewExtensionRefStore(runtimeCache cache.Cache, logger logr.Logger) *Extensi
 
 // ExcludeGroupKind marks a group/kind pair as already watched, preventing duplicate controller registration.
 func (s *ExtensionRefStore) ExcludeGroupKind(group, kind string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.excludedGroupKinds[group+"/"+kind] = struct{}{}
 }
 
@@ -162,7 +166,11 @@ func (s *ExtensionRefStore) resolveGVKs(
 	ctx context.Context,
 	groupKinds map[string]schema.GroupVersionKind,
 ) (map[string]schema.GroupVersionKind, error) {
-	return resolveGVKsFromCRDs(ctx, s.cache, groupKinds, s.excludedGroupKinds, "ExtensionRef")
+	s.mu.RLock()
+	excluded := maps.Clone(s.excludedGroupKinds)
+	s.mu.RUnlock()
+
+	return resolveGVKsFromCRDs(ctx, s.cache, groupKinds, excluded, "ExtensionRef")
 }
 
 // collectHTTPRouteExtensionRefGVKs extracts ExtensionRef GVKs from an HTTPRoute's filters.

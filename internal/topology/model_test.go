@@ -3,8 +3,8 @@ package topology_test
 import (
 	"testing"
 
+	"github.com/nginxinc/gateway-lens/internal/topology"
 	. "github.com/onsi/gomega"
-	"github.com/sjberman/gateway-lens/internal/topology"
 )
 
 const (

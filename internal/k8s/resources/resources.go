@@ -20,9 +20,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	frameworkcontroller "github.com/sjberman/gateway-lens/internal/k8s/framework/controller"
-	frameworkevents "github.com/sjberman/gateway-lens/internal/k8s/framework/events"
-	"github.com/sjberman/gateway-lens/internal/topology"
+	frameworkcontroller "github.com/nginxinc/gateway-lens/internal/k8s/framework/controller"
+	frameworkevents "github.com/nginxinc/gateway-lens/internal/k8s/framework/events"
+	"github.com/nginxinc/gateway-lens/internal/topology"
 )
 
 var (
@@ -138,12 +138,15 @@ func (r *Resources) RegisterControllers(registrar ControllerRegistrar) error {
 	r.registrar = registrar
 
 	for _, descriptor := range r.descriptors {
-		reconciler := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+		reconciler, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
 			Getter:     r.cache,
 			ObjectType: descriptor.object,
 			OnUpsert:   r.sendUpsertEvent,
 			OnDelete:   r.sendDeleteEvent,
 		})
+		if err != nil {
+			return fmt.Errorf("creating reconciler for %s: %w", descriptor.name, err)
+		}
 
 		if err := registrar.RegisterController(descriptor.name, descriptor.object, reconciler); err != nil {
 			return fmt.Errorf("setting up resource watches: %w", err)
@@ -518,7 +521,7 @@ func (r *Resources) registerDynamicControllers(
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(gvk)
 
-		reconciler := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+		reconciler, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
 			Getter:     r.cache,
 			ObjectType: obj,
 			OnUpsert: func(_ context.Context, obj client.Object) {
@@ -535,6 +538,9 @@ func (r *Resources) registerDynamicControllers(
 				r.notifySubscribers()
 			},
 		})
+		if err != nil {
+			return fmt.Errorf("creating reconciler for %s: %w", gvk.String(), err)
+		}
 
 		name := prefix + "-" + strings.ToLower(gvk.Kind)
 

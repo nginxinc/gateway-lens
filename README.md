@@ -13,7 +13,7 @@ build a topology snapshot of nodes, edges, conditions, and annotations. A
 built-in HTTP server exposes this snapshot at `/data` and serves the compiled
 React dashboard at all other paths.
 
-The [dashboard frontend](web/dashboard) is a React + TypeScript application
+The [dashboard frontend](dashboard) is a React + TypeScript application
 built with Vite. It receives change notifications via Server-Sent Events and
 fetches `/data` on demand, rendering the topology using React Flow with
 automatic dagre layout.
@@ -30,7 +30,7 @@ locally against a kubeconfig, or installing it into the cluster as a Pod.
 - A **kubeconfig** pointing at a cluster with Gateway API v1.6+ CRDs installed
 
 Download the latest binary for your platform from the
-[Releases page](https://github.com/sjberman/gateway-lens/releases/latest),
+[Releases page](https://github.com/nginxinc/gateway-lens/releases/latest),
 then run it:
 
 ```sh
@@ -45,9 +45,7 @@ open http://localhost:8080
 
 ### Option 2: Run in Kubernetes
 
-Gateway Lens can run as a Pod inside the cluster it's watching. Manifests for
-a Deployment, Service, ServiceAccount, and the ClusterRole/ClusterRoleBinding
-needed to watch Gateway API resources are provided in
+Gateway Lens can run as a Pod inside the cluster it's watching. Manifests are provided in
 [`deploy/manifests.yaml`](deploy/manifests.yaml):
 
 ```sh
@@ -112,22 +110,14 @@ make image
 
 ## Developer Commands
 
-| Command                | Description                                           |
-| ---------------------- | ----------------------------------------------------- |
-| `make build`           | Build dashboard + Go binary into `bin/gateway-lens`   |
-| `make unit-test`       | Run Go tests with race detection and coverage         |
-| `make lint`            | Run golangci-lint on Go code                          |
-| `make dashboard-build` | Compile the React dashboard                           |
-| `make dashboard-lint`  | Lint the React dashboard                              |
-| `make dashboard-test`  | Run React dashboard unit tests                        |
-| `make image`           | Build a container image (requires Docker)             |
+To view all available `make` targets for development, run `make help`.
 
 ### Dashboard Dev Server
 
 For frontend iteration with hot reload:
 
 ```sh
-cd web/dashboard
+cd dashboard
 VITE_API_BASE_URL=http://localhost:8080 npm run dev
 ```
 

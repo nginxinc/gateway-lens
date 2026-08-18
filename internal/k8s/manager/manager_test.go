@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/sjberman/gateway-lens/internal/k8s/manager"
+	"github.com/nginxinc/gateway-lens/internal/k8s/manager"
 )
 
 func TestNewGatewayAPIScheme(t *testing.T) {

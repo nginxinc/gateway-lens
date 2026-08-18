@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/sjberman/gateway-lens/internal/topology"
+	"github.com/nginxinc/gateway-lens/internal/topology"
 )
 
 // liveResourcesReader provides read access to the latest synchronized Gateway API resources.

@@ -24,7 +24,7 @@ type HTTPServerRunnable struct {
 	// listenAddress is the TCP address the server binds to.
 	listenAddress string
 	// boundAddress stores the actual address once the listener is active.
-	boundAddress  atomic.Value
+	boundAddress  atomic.Pointer[string]
 }
 
 // NewHTTPServerRunnable creates a dashboard server runnable.
@@ -43,12 +43,12 @@ func NewHTTPServerRunnable(
 // Addr returns the bound network address once the server has started listening.
 // Returns an empty string if the server has not yet started.
 func (r *HTTPServerRunnable) Addr() string {
-	addr, ok := r.boundAddress.Load().(string)
-	if !ok {
+	addr := r.boundAddress.Load()
+	if addr == nil {
 		return ""
 	}
 
-	return addr
+	return *addr
 }
 
 // Start runs the dashboard HTTP server until the context is canceled.
@@ -72,7 +72,8 @@ func (r *HTTPServerRunnable) serve(ctx context.Context) error {
 		return fmt.Errorf("opening dashboard listener: %w", err)
 	}
 
-	r.boundAddress.Store(listener.Addr().String())
+	addr := listener.Addr().String()
+	r.boundAddress.Store(&addr)
 
 	server := newDashboardServer(handler)
 

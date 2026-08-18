@@ -83,6 +83,85 @@ func TestRunRejectsInvalidLogLevel(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring(`invalid log level: "bogus"`)))
 }
 
+func TestRunRejectsInvalidPort(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name string
+		port int
+	}{
+		{name: "zero", port: 0},
+		{name: "negative", port: -1},
+		{name: "too large", port: 65536},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			err := run(t.Context(), testCase.port, defaultLogLevel, nil)
+			g.Expect(err).To(MatchError(ContainSubstring("invalid port")))
+		})
+	}
+}
+
+func TestRunRejectsInvalidNamespace(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name       string
+		namespaces []string
+	}{
+		{name: "uppercase", namespaces: []string{"Invalid"}},
+		{name: "underscore", namespaces: []string{"invalid_namespace"}},
+		{name: "leading hyphen", namespaces: []string{"-invalid"}},
+		{name: "empty string", namespaces: []string{""}},
+		{name: "valid then invalid", namespaces: []string{"valid-ns", "Invalid"}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			err := run(t.Context(), defaultPort, defaultLogLevel, testCase.namespaces)
+			g.Expect(err).To(MatchError(ContainSubstring("invalid namespace")))
+		})
+	}
+}
+
+func TestValidateNamespaces(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name        string
+		namespaces  []string
+		expectError bool
+	}{
+		{name: "nil namespaces", namespaces: nil, expectError: false},
+		{name: "empty slice", namespaces: []string{}, expectError: false},
+		{name: "single valid namespace", namespaces: []string{"default"}, expectError: false},
+		{name: "multiple valid namespaces", namespaces: []string{"default", "kube-system"}, expectError: false},
+		{name: "invalid uppercase", namespaces: []string{"Default"}, expectError: true},
+		{name: "invalid underscore", namespaces: []string{"kube_system"}, expectError: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			err := validateNamespaces(testCase.namespaces)
+
+			if testCase.expectError {
+				g.Expect(err).To(MatchError(ContainSubstring("invalid namespace")))
+
+				return
+			}
+
+			g.Expect(err).ToNot(HaveOccurred())
+		})
+	}
+}
+
 func TestVersionCommand(t *testing.T) {
 	t.Parallel()
 

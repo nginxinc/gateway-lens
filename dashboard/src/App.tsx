@@ -101,7 +101,7 @@ const nodeTypes = {
 }
 
 
-function App() {
+export function App() {
   const [payload, setPayload] = useState<DashboardPayload | null>(null)
   const [flowNodes, setFlowNodes] = useState<Node[]>([])
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])
@@ -171,11 +171,17 @@ function App() {
     return resourceKey(edge.from) === nodeKey || resourceKey(edge.to) === nodeKey
   }) ?? []
 
-  // Rebuild graph whenever graphPayload or selectedKey changes.
+  // Resolves the next selected key using the latest selectedKey without needing
+  // it as an effect dependency (selectedKey is only read, not reacted to, here).
+  const resolveNextSelectedKey = useEffectEvent((currentGraphPayload: DashboardPayload) => {
+    return resolveSelectedKey(currentGraphPayload, selectedKey)
+  })
+
+  // Rebuild graph whenever graphPayload changes.
   useEffect(() => {
     if (!graphPayload) return
 
-    const nextSelectedKey = resolveSelectedKey(graphPayload, selectedKey)
+    const nextSelectedKey = resolveNextSelectedKey(graphPayload)
     const graph = buildGraph(graphPayload, nextSelectedKey)
 
     startTransition(() => {
@@ -183,7 +189,7 @@ function App() {
       setFlowNodes(graph.nodes)
       setFlowEdges(graph.edges)
     })
-  }, [graphPayload]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [graphPayload])
 
   const refreshSnapshot = useEffectEvent(async () => {
     try {
@@ -506,5 +512,3 @@ function handleOffsetPercent(handleIndex: number, handleCount: number) {
 
   return Math.round(spacing * (handleIndex + 1) * 100) / 100
 }
-
-export default App

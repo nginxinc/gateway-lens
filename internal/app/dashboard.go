@@ -15,8 +15,8 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/sjberman/gateway-lens/internal/app/dashboardui"
-	"github.com/sjberman/gateway-lens/internal/topology"
+	"github.com/nginxinc/gateway-lens/internal/app/dashboardui"
+	"github.com/nginxinc/gateway-lens/internal/topology"
 )
 
 // dashboardPayload is the JSON response body served by the /data endpoint.
@@ -391,7 +391,7 @@ func addManifestsFunc[T any, PT interface {
 
 			yamlStr, err := marshalManifestYAML(apiVersion, kind, item)
 			if err != nil {
-				return fmt.Errorf("%s/%s: %w", item.GetNamespace(), item.GetName(), err)
+				return fmt.Errorf("marshaling %s/%s: %w", item.GetNamespace(), item.GetName(), err)
 			}
 
 			manifests[ref] = yamlStr

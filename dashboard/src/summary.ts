@@ -1,6 +1,6 @@
 import type {DashboardPayload} from './types'
 
-export type SummaryCard = {
+export interface SummaryCard {
   label: string
   value: number
 }

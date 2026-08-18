@@ -1,7 +1,7 @@
 import type {ReactNode} from 'react'
 import type {DashboardEdge, DashboardNode, DashboardResourceRef} from './types'
 
-type InspectorItem = {
+interface InspectorItem {
   label: string
   value: string
 }
@@ -10,19 +10,19 @@ export function hasAttributes(node: DashboardNode) {
   return Object.keys(node.attributes ?? {}).length > 0
 }
 
-export function InspectorSection(props: {children: ReactNode; title: string}) {
+export function InspectorSection({children, title}: {children: ReactNode; title: string}) {
   return (
     <section className="inspector-section">
-      <h3>{props.title}</h3>
-      {props.children}
+      <h3>{title}</h3>
+      {children}
     </section>
   )
 }
 
-export function InspectorList(props: {items: InspectorItem[]}) {
+export function InspectorList({items}: {items: InspectorItem[]}) {
   return (
     <div className="inspector-list">
-      {props.items.map((item) => {
+      {items.map((item) => {
         return (
           <article className="inspector-item" key={`${item.label}:${item.value}`}>
             <p>{item.label}</p>
@@ -61,19 +61,23 @@ function formatResource(ref: DashboardResourceRef) {
   return ref.namespace ? `${ref.namespace}/${ref.name}` : ref.name
 }
 
-function RelationshipGroup(props: {
+function RelationshipGroup({
+  direction,
+  edges,
+  refSide,
+}: {
   direction: string
   edges: DashboardEdge[]
   refSide: (edge: DashboardEdge) => DashboardResourceRef
 }) {
-  if (!props.edges.length) return null
+  if (!edges.length) return null
 
   return (
     <div className="relationship-group">
-      <p className="relationship-direction">{props.direction}</p>
+      <p className="relationship-direction">{direction}</p>
       <ul className="relationship-list">
-        {props.edges.map((edge) => {
-          const ref = props.refSide(edge)
+        {edges.map((edge) => {
+          const ref = refSide(edge)
           return (
             <li className="relationship-row" key={edgeKey(edge)}>
               <span className="relationship-kind">{ref.kind}</span>

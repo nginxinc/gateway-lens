@@ -12,8 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/sjberman/gateway-lens/internal/k8s/resources"
-	"github.com/sjberman/gateway-lens/internal/topology"
+	"github.com/nginxinc/gateway-lens/internal/k8s/resources"
+	"github.com/nginxinc/gateway-lens/internal/topology"
 )
 
 var errForbidden = errors.New("forbidden")

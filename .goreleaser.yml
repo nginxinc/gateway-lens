@@ -29,7 +29,7 @@ dockers_v2:
   - ids:
       - gateway-lens
     images:
-      - ghcr.io/sjberman/gateway-lens
+      - ghcr.io/nginxinc/gateway-lens
     tags:
       - "{{ .Version }}"
       - "{{ if not .IsSnapshot }}latest{{ end }}"

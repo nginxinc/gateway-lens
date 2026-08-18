@@ -1,4 +1,4 @@
-type ColorTone = {
+interface ColorTone {
   fill: string
   selectedFill: string
   selectedStroke: string

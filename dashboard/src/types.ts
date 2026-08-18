@@ -1,39 +1,39 @@
-export type DashboardPayload = {
+export interface DashboardPayload {
   generatedAt: string
   nodes: DashboardNode[]
   edges: DashboardEdge[]
   annotations?: DashboardAnnotation[]
 }
 
-export type DashboardNode = {
+export interface DashboardNode {
   ref: DashboardResourceRef
   attributes: Record<string, string>
   conditions?: DashboardCondition[]
   manifest?: string
 }
 
-export type DashboardEdge = {
+export interface DashboardEdge {
   from: DashboardResourceRef
   to: DashboardResourceRef
   type: string
   detail: string
 }
 
-export type DashboardAnnotation = {
+export interface DashboardAnnotation {
   ref: DashboardResourceRef
   source: string
   key: string
   value: string
 }
 
-export type DashboardCondition = {
+export interface DashboardCondition {
   type: string
   status: string
   reason?: string
   message?: string
 }
 
-export type DashboardResourceRef = {
+export interface DashboardResourceRef {
   group: string
   kind: string
   namespace?: string

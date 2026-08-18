@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/sjberman/gateway-lens/internal/k8s/resources"
+	"github.com/nginxinc/gateway-lens/internal/k8s/resources"
 )
 
 const (

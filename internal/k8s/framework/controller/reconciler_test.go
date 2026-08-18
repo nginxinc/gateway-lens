@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	frameworkcontroller "github.com/sjberman/gateway-lens/internal/k8s/framework/controller"
+	frameworkcontroller "github.com/nginxinc/gateway-lens/internal/k8s/framework/controller"
 )
 
 var errConnectionRefused = errors.New("connection refused")
@@ -98,7 +98,7 @@ func TestReconcileUpsert(t *testing.T) {
 		},
 	}
 
-	rec := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+	rec, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
 		Getter:     getter,
 		ObjectType: existingPod,
 		OnUpsert: func(_ context.Context, obj client.Object) {
@@ -106,6 +106,7 @@ func TestReconcileUpsert(t *testing.T) {
 		},
 		OnDelete: func(context.Context, client.Object, types.NamespacedName) {},
 	})
+	g.Expect(err).ToNot(HaveOccurred())
 
 	result, err := rec.Reconcile(contextWithLogger(t), reconcileRequest())
 	g.Expect(err).ToNot(HaveOccurred())
@@ -131,7 +132,7 @@ func TestReconcileDeleteNotFound(t *testing.T) {
 		},
 	}
 
-	rec := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+	rec, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
 		Getter:     getter,
 		ObjectType: &corev1.Pod{},
 		OnUpsert:   func(context.Context, client.Object) {},
@@ -139,9 +140,10 @@ func TestReconcileDeleteNotFound(t *testing.T) {
 			deletedNN = nn
 		},
 	})
-
-	result, err := rec.Reconcile(contextWithLogger(t), reconcileRequest())
 	g.Expect(err).ToNot(HaveOccurred())
+
+	result, reconcileErr := rec.Reconcile(contextWithLogger(t), reconcileRequest())
+	g.Expect(reconcileErr).ToNot(HaveOccurred())
 	g.Expect(result).To(Equal(reconcile.Result{}))
 
 	g.Expect(deletedNN).To(Equal(types.NamespacedName{Namespace: nsDefault, Name: podName}))
@@ -161,7 +163,7 @@ func TestReconcileGetError(t *testing.T) {
 		},
 	}
 
-	rec := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+	rec, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
 		Getter:     getter,
 		ObjectType: &corev1.Pod{},
 		OnUpsert: func(context.Context, client.Object) {
@@ -171,11 +173,34 @@ func TestReconcileGetError(t *testing.T) {
 			deleteCalled = true
 		},
 	})
+	g.Expect(err).ToNot(HaveOccurred())
 
-	_, err := rec.Reconcile(contextWithLogger(t), reconcileRequest())
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("connection refused"))
+	_, reconcileErr := rec.Reconcile(contextWithLogger(t), reconcileRequest())
+	g.Expect(reconcileErr).To(HaveOccurred())
+	g.Expect(reconcileErr.Error()).To(ContainSubstring("connection refused"))
 
 	g.Expect(upsertCalled).To(BeFalse())
 	g.Expect(deleteCalled).To(BeFalse())
+}
+
+func TestNewReconcilerRequiresCallbacks(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	_, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+		Getter:     &fakeReader{},
+		ObjectType: &corev1.Pod{},
+		OnDelete:   func(context.Context, client.Object, types.NamespacedName) {},
+	})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("OnUpsert"))
+
+	_, err = frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+		Getter:     &fakeReader{},
+		ObjectType: &corev1.Pod{},
+		OnUpsert:   func(context.Context, client.Object) {},
+	})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("OnDelete"))
 }

@@ -8,25 +8,35 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/util/validation"
 	ctlrconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	ctlrlog "sigs.k8s.io/controller-runtime/pkg/log"
 	ctlrZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/sjberman/gateway-lens/internal/k8s/manager"
+	"github.com/nginxinc/gateway-lens/internal/k8s/manager"
 )
 
 const (
 	versionCommandName = "version"
 	defaultPort        = 8080
 	defaultLogLevel    = "info"
+	minPort            = 1
+	maxPort            = 65535
 )
 
-var errInvalidLogLevel = errors.New("invalid log level")
+var (
+	errInvalidLogLevel  = errors.New("invalid log level")
+	errInvalidPort      = errors.New("invalid port")
+	errInvalidNamespace = errors.New("invalid namespace")
+)
 
 // containerMarkerFiles are files whose existence indicates a container environment.
 var containerMarkerFiles = []string{ //nolint:gochecknoglobals // static lookup table
@@ -68,9 +78,10 @@ func newRootCommand(out io.Writer, errOut io.Writer) *cobra.Command {
 	)
 
 	rootCmd := &cobra.Command{
-		Use:          "gateway-lens",
-		Short:        "Visualize Gateway API resources and relationships",
-		SilenceUsage: true,
+		Use:           "gateway-lens",
+		Short:         "Visualize Gateway API resources and relationships",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return run(cmd.Context(), port, logLevel, namespaces)
 		},
@@ -112,6 +123,14 @@ func run(ctx context.Context, port int, logLevel string, namespaces []string) er
 		return fmt.Errorf("%w: %q (must be one of 'debug', 'info', 'error', 'panic')", errInvalidLogLevel, logLevel)
 	}
 
+	if port < minPort || port > maxPort {
+		return fmt.Errorf("%w: %d (must be between %d and %d)", errInvalidPort, port, minPort, maxPort)
+	}
+
+	if err := validateNamespaces(namespaces); err != nil {
+		return err
+	}
+
 	logger := ctlrZap.New(ctlrZap.Level(zap.NewAtomicLevelAt(zapLevel)))
 	ctlrlog.SetLogger(logger)
 
@@ -120,7 +139,7 @@ func run(ctx context.Context, port int, logLevel string, namespaces []string) er
 		host = "0.0.0.0"
 	}
 
-	listenAddr := fmt.Sprintf("%s:%d", host, port)
+	listenAddr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	logger.Info("Starting gateway-lens", "version", version, "commit", commit)
 
@@ -131,6 +150,17 @@ func run(ctx context.Context, port int, logLevel string, namespaces []string) er
 
 	if err := mgr.Start(ctx); err != nil {
 		return fmt.Errorf("starting manager: %w", err)
+	}
+
+	return nil
+}
+
+// validateNamespaces reports an error if any namespace is not a valid DNS-1123 subdomain.
+func validateNamespaces(namespaces []string) error {
+	for _, ns := range namespaces {
+		if errs := validation.IsDNS1123Subdomain(ns); len(errs) > 0 {
+			return fmt.Errorf("%w: %q (%s)", errInvalidNamespace, ns, strings.Join(errs, "; "))
+		}
 	}
 
 	return nil

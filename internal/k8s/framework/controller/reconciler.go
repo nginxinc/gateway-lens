@@ -44,14 +44,14 @@ type Reconciler struct {
 }
 
 // NewReconciler creates a generic controller-runtime reconciler.
-// Panics if OnUpsert or OnDelete callbacks are nil.
-func NewReconciler(cfg ReconcilerConfig) *Reconciler {
+// Returns an error if the OnUpsert or OnDelete callbacks are nil.
+func NewReconciler(cfg ReconcilerConfig) (*Reconciler, error) {
 	if cfg.OnUpsert == nil {
-		panic(errNilOnUpsertCallback)
+		return nil, errNilOnUpsertCallback
 	}
 
 	if cfg.OnDelete == nil {
-		panic(errNilOnDeleteCallback)
+		return nil, errNilOnDeleteCallback
 	}
 
 	return &Reconciler{
@@ -59,7 +59,7 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 		objectType: cfg.ObjectType,
 		onUpsert:   cfg.OnUpsert,
 		onDelete:   cfg.OnDelete,
-	}
+	}, nil
 }
 
 // Reconcile fetches the resource and calls the appropriate upsert or delete callback.

@@ -15,9 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	frameworkcontroller "github.com/sjberman/gateway-lens/internal/k8s/framework/controller"
-	"github.com/sjberman/gateway-lens/internal/k8s/resources"
-	"github.com/sjberman/gateway-lens/internal/topology"
+	frameworkcontroller "github.com/nginxinc/gateway-lens/internal/k8s/framework/controller"
+	"github.com/nginxinc/gateway-lens/internal/k8s/resources"
+	"github.com/nginxinc/gateway-lens/internal/topology"
 )
 
 const (
@@ -348,6 +348,7 @@ func TestPolicyStoreGetSortsDeterministically(t *testing.T) {
 // ---- Policy reconciler via framework Reconciler ----
 
 func newPolicyReconciler(
+	g Gomega,
 	getter *fakePolicyReader,
 	gvk schema.GroupVersionKind,
 	onUpsert func(context.Context, client.Object),
@@ -356,12 +357,15 @@ func newPolicyReconciler(
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(gvk)
 
-	return frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
+	rec, err := frameworkcontroller.NewReconciler(frameworkcontroller.ReconcilerConfig{
 		Getter:     getter,
 		ObjectType: obj,
 		OnUpsert:   onUpsert,
 		OnDelete:   onDelete,
 	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	return rec
 }
 
 func fakePolicyGetter(
@@ -404,7 +408,7 @@ func TestPolicyReconcilerUpsert(t *testing.T) {
 		}
 	}
 
-	rec := newPolicyReconciler(fakePolicyGetter(g, gvk), gvk,
+	rec := newPolicyReconciler(g, fakePolicyGetter(g, gvk), gvk,
 		func(_ context.Context, obj client.Object) {
 			u, ok := obj.(*unstructured.Unstructured)
 			g.Expect(ok).To(BeTrue())
@@ -461,7 +465,7 @@ func TestPolicyReconcilerDelete(t *testing.T) {
 		},
 	}
 
-	rec := newPolicyReconciler(getter, gvk,
+	rec := newPolicyReconciler(g, getter, gvk,
 		func(context.Context, client.Object) {},
 		func(_ context.Context, _ client.Object, nn types.NamespacedName) {
 			store.DeletePolicy(gvk, nn)
@@ -500,7 +504,7 @@ func TestPolicyReconcilerGetError(t *testing.T) {
 		},
 	}
 
-	rec := newPolicyReconciler(getter, gvk,
+	rec := newPolicyReconciler(g, getter, gvk,
 		func(context.Context, client.Object) { upsertCalled = true },
 		func(context.Context, client.Object, types.NamespacedName) { deleteCalled = true },
 	)
