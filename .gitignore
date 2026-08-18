@@ -8,3 +8,7 @@ cover.html
 # Frontend dependencies and build output
 web/dashboard/node_modules/
 internal/app/dashboardui/dist/
+
+# Editor directories and files
+.idea
+.vscode
