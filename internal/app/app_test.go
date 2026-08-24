@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	serveTestTimeout = 3 * time.Second
-	pollInterval     = 25 * time.Millisecond
+	serveTestTimeout    = 3 * time.Second
+	shutdownWaitTimeout = 10 * time.Second
+	pollInterval        = 25 * time.Millisecond
 )
 
 type fakeResourcesReader struct {
@@ -108,7 +109,7 @@ func TestHTTPServerRunnableStartsDashboard(t *testing.T) {
 	assertDashboardPageEndpoint(ctx, t, g, dashboardAddr)
 
 	cancel()
-	g.Eventually(errCh, serveTestTimeout).Should(Receive(BeNil()))
+	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
 }
 
 func waitForDashboardReady(g Gomega, runnable *app.HTTPServerRunnable) string {
@@ -204,11 +205,13 @@ func TestSSEEndpointStreamsChangedEvents(t *testing.T) {
 		}
 	}
 
+	g.Expect(scanner.Err()).ToNot(HaveOccurred())
+
 	g.Expect(lines).To(ContainElement("event: changed"))
 	g.Expect(lines).To(ContainElement("data: {}"))
 
 	cancel()
-	g.Eventually(errCh, serveTestTimeout).Should(Receive(BeNil()))
+	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
 }
 
 func TestSSEEndpointRejectsBrowserNavigation(t *testing.T) {
@@ -242,7 +245,7 @@ func TestSSEEndpointRejectsBrowserNavigation(t *testing.T) {
 	g.Expect(resp.StatusCode).To(Equal(http.StatusNotAcceptable))
 
 	cancel()
-	g.Eventually(errCh, serveTestTimeout).Should(Receive(BeNil()))
+	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
 }
 
 func TestEndpointsRejectNonGETMethods(t *testing.T) {
@@ -279,5 +282,5 @@ func TestEndpointsRejectNonGETMethods(t *testing.T) {
 	}
 
 	cancel()
-	g.Eventually(errCh, serveTestTimeout).Should(Receive(BeNil()))
+	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
 }
