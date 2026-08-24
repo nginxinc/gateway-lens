@@ -1,5 +1,5 @@
 # renovate: datasource=github-tags depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.12.1
+GOLANGCI_LINT_VERSION ?= v2.13.1
 VERSION ?= dev
 COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf 'none')
 GOOS ?= $(shell go env GOOS)
