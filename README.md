@@ -45,16 +45,48 @@ open http://localhost:8080
 
 ### Option 2: Run in Kubernetes
 
-Gateway Lens can run as a Pod inside the cluster it's watching. Manifests are provided in
-[`deploy/manifests.yaml`](deploy/manifests.yaml):
+Gateway Lens can run as a Pod inside the cluster it's watching, either via manifests or a Helm chart.
+
+#### Manifests
+
+Provided in [`deploy/manifests.yaml`](deploy/manifests.yaml):
 
 ```sh
 kubectl apply -f deploy/manifests.yaml
 ```
 
-This deploys Gateway Lens into the `default` namespace, exposed via a
-`ClusterIP` Service named `gateway-lens` on port `80`. Port-forward to access
-the dashboard:
+If your cluster's Gateway API implementation defines its own extension CRDs
+(policies, `parametersRef`/`extensionRef` targets), use the manifest for that
+provider instead so RBAC covers those CRDs too, e.g.
+[`deploy/manifests-nginx-gateway-fabric.yaml`](deploy/manifests-nginx-gateway-fabric.yaml)
+for [NGINX Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric):
+
+```sh
+kubectl apply -f deploy/manifests-nginx-gateway-fabric.yaml
+```
+
+#### Helm
+
+Provided in [`charts/gateway-lens`](charts/gateway-lens):
+
+```sh
+helm install gateway-lens ./charts/gateway-lens
+```
+
+If your cluster's Gateway API implementation defines its own extension CRDs,
+set `rbac.providers` to its name so the chart's `ClusterRole` covers them
+too, e.g. for [NGINX Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric):
+
+```sh
+helm install gateway-lens ./charts/gateway-lens --set rbac.providers={nginx-gateway-fabric}
+```
+
+See [`charts/gateway-lens/README.md`](charts/gateway-lens/README.md#providers)
+for the full list of available providers.
+
+Either option deploys Gateway Lens into the `default` namespace (or the
+current namespace, for Helm), exposed via a `ClusterIP` Service named
+`gateway-lens` on port `80`. Port-forward to access the dashboard:
 
 ```sh
 kubectl port-forward svc/gateway-lens 8080:80
@@ -67,8 +99,7 @@ in your cluster, pointing at the `gateway-lens` Service.
 ## Configuration
 
 Gateway Lens is configured via CLI flags, regardless of whether it's run
-locally or in Kubernetes (for the latter, set `args` on the container in
-[`deploy/manifests.yaml`](deploy/manifests.yaml)):
+locally or in Kubernetes:
 
 | Flag           | Description                                             | Default |
 | -------------- | -------------------------------------------------------- | ------- |
@@ -79,6 +110,12 @@ locally or in Kubernetes (for the latter, set `args` on the container in
 ```sh
 ./gateway-lens --port 9090 --log-level debug --namespaces default,gateway-system
 ```
+
+When running via the Helm chart, these flags are exposed as the explicit
+`port`, `logLevel`, and `namespaces` values (see
+[`charts/gateway-lens/README.md`](charts/gateway-lens/README.md#values)). For the plain manifests in
+[`deploy/`](deploy/), edit the container's `args`
+directly.
 
 ## Building From Source
 

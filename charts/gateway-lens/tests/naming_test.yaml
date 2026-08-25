@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: naming (gateway-lens.name / gateway-lens.fullname helpers, via deployment.yaml)
+templates:
+  - deployment.yaml
+tests:
+  - it: should join release name and chart name by default
+    release:
+      name: my-release
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-release-gateway-lens
+
+  - it: should not double up the chart name when the release name already contains it
+    release:
+      name: gateway-lens-prod
+    asserts:
+      - equal:
+          path: metadata.name
+          value: gateway-lens-prod
+
+  - it: should use fullnameOverride verbatim when set, ignoring the release name
+    release:
+      name: my-release
+    set:
+      fullnameOverride: custom-fullname
+    asserts:
+      - equal:
+          path: metadata.name
+          value: custom-fullname
+
+  - it: should use nameOverride in place of the chart name
+    release:
+      name: my-release
+    set:
+      nameOverride: custom-name
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-release-custom-name
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: custom-name
+
+  - it: should set common labels including chart version and managed-by
+    release:
+      name: my-release
+    chart:
+      version: 1.2.3
+      appVersion: "9.9.9"
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: gateway-lens
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: my-release
+      - equal:
+          path: metadata.labels["app.kubernetes.io/version"]
+          value: "9.9.9"
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+      - equal:
+          path: metadata.labels["helm.sh/chart"]
+          value: gateway-lens-1.2.3

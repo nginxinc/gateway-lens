@@ -1,0 +1,102 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: clusterrole
+templates:
+  - clusterrole.yaml
+tests:
+  - it: should always include the base Gateway API and CRD discovery rules
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["gateway.networking.k8s.io"]
+            resources:
+              - gatewayclasses
+              - gateways
+              - httproutes
+              - grpcroutes
+              - tlsroutes
+              - tcproutes
+              - udproutes
+              - referencegrants
+              - backendtlspolicies
+              - listenersets
+            verbs: ["watch", "list", "get"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["apiextensions.k8s.io"]
+            resources:
+              - customresourcedefinitions
+            verbs: ["watch", "list", "get"]
+      - lengthEqual:
+          path: rules
+          count: 2
+
+  - it: should merge in the nginx-gateway-fabric provider rules when selected
+    set:
+      rbac.providers:
+        - nginx-gateway-fabric
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["gateway.nginx.org"]
+            resources:
+              - nginxgateways
+              - nginxproxies
+              - clientsettingspolicies
+              - observabilitypolicies
+              - upstreamsettingspolicies
+              - authenticationfilters
+              - proxysettingspolicies
+              - ratelimitpolicies
+              - wafpolicies
+              - snippetsfilters
+              - snippetspolicies
+              - payloadprocessors
+              - externalloadbalancers
+            verbs: ["watch", "list", "get"]
+      - lengthEqual:
+          path: rules
+          count: 3
+
+  - it: should fail with a clear error for an unknown provider name
+    set:
+      rbac.providers:
+        - does-not-exist
+    asserts:
+      - failedTemplate:
+          errorMessage: 'gateway-lens: unknown rbac.providers entry "does-not-exist" (no providers/does-not-exist.yaml found in chart)'
+
+  - it: should merge in extraRules with the fixed watch/list/get verbs
+    set:
+      rbac.extraRules:
+        - apiGroups: ["gateway.example.io"]
+          resources:
+            - someextensionpolicies
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["gateway.example.io"]
+            resources:
+              - someextensionpolicies
+            verbs: ["watch", "list", "get"]
+      - lengthEqual:
+          path: rules
+          count: 3
+
+  - it: should merge both providers and extraRules together
+    set:
+      rbac.providers:
+        - nginx-gateway-fabric
+      rbac.extraRules:
+        - apiGroups: ["gateway.example.io"]
+          resources:
+            - someextensionpolicies
+    asserts:
+      - lengthEqual:
+          path: rules
+          count: 4

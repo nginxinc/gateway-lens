@@ -1,0 +1,188 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: should render a Deployment with the default image repository and appVersion tag
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/nginxinc/gateway-lens:latest
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should use the explicit image tag and pull policy when set
+    set:
+      image.tag: v1.2.3
+      image.pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/nginxinc/gateway-lens:v1.2.3
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: should build container args from port, logLevel, namespaces, and extraArgs
+    set:
+      port: 9090
+      logLevel: debug
+      namespaces:
+        - foo
+        - bar
+      extraArgs:
+        - --some-flag=value
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - --port=9090
+            - --log-level=debug
+            - --namespaces=foo,bar
+            - --some-flag=value
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9090
+
+  - it: should omit the --namespaces flag when namespaces is empty
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - --port=8080
+            - --log-level=info
+
+  - it: should set container-level and pod-level securityContext
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          value: ["ALL"]
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.securityContext.seccompProfile.type
+          value: RuntimeDefault
+
+  - it: should set replicas from replicaCount
+    set:
+      replicaCount: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should render nodeSelector, tolerations, and affinity when set
+    set:
+      nodeSelector:
+        disktype: ssd
+      tolerations:
+        - key: some-key
+          operator: Exists
+          effect: NoSchedule
+      affinity:
+        nodeAffinity: {}
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+      - equal:
+          path: spec.template.spec.tolerations[0].key
+          value: some-key
+      - exists:
+          path: spec.template.spec.affinity.nodeAffinity
+
+  - it: should not render nodeSelector, tolerations, or affinity by default
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: should set the selector and pod template labels via the selectorLabels helper
+    release:
+      name: my-release
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: gateway-lens
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+          value: my-release
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: gateway-lens
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/instance"]
+          value: my-release
+
+  - it: should merge podLabels into the pod template and render podAnnotations
+    set:
+      podLabels:
+        team: platform
+      podAnnotations:
+        some.annotation/key: some-value
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: platform
+      - equal:
+          path: spec.template.metadata.annotations["some.annotation/key"]
+          value: some-value
+
+  - it: should not render pod annotations by default
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations
+
+  - it: should pass through the resources block
+    set:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 256Mi
+
+  - it: should set serviceAccountName from the serviceAccountName helper and override automountServiceAccountToken to true
+    release:
+      name: my-release
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: my-release-gateway-lens
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: true
+
+  - it: should use the configured serviceAccount name, or "default" when creation is disabled and no name given
+    set:
+      serviceAccount.create: false
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default

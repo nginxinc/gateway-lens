@@ -63,6 +63,40 @@ jobs:
       - name: Lint
         uses: reviewdog/action-actionlint@6fb7acc99f4a1008869fa8a0f09cfca740837d9d # v1.72.0
 
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Lint
+        run: make helm-lint
+
+  helm-unittest:
+    name: Helm Unit Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run Tests
+        run: make helm-unittest
+
+  verify-generated:
+    name: Verify Generated Files
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Golang Environment
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+      - name: Verify
+        run: |
+          make generate
+          git diff --exit-code deploy/ charts/gateway-lens/README.md charts/gateway-lens/values.schema.json
+
   unit-tests:
     name: Go Unit Tests
     runs-on: ubuntu-24.04
@@ -126,7 +160,7 @@ jobs:
           cache-dependency-path: dashboard/package-lock.json
       - name: Login to GitHub Container Registry
         if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -139,3 +173,23 @@ jobs:
           args: ${{ startsWith(github.ref, 'refs/tags/') && 'release --clean' || 'release --snapshot --skip=publish --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-chart:
+    name: Publish Helm Chart
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package and Push Chart
+        run: |
+          helm package charts/gateway-lens
+          helm push gateway-lens-*.tgz oci://ghcr.io/nginxinc/charts

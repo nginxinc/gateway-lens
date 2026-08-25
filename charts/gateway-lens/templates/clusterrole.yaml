@@ -1,0 +1,45 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "gateway-lens.fullname" . }}
+  labels:
+    {{- include "gateway-lens.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources:
+      - gatewayclasses
+      - gateways
+      - httproutes
+      - grpcroutes
+      - tlsroutes
+      - tcproutes
+      - udproutes
+      - referencegrants
+      - backendtlspolicies
+      - listenersets
+    verbs: ["watch", "list", "get"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs: ["watch", "list", "get"]
+  {{- range .Values.rbac.providers }}
+  {{- $path := printf "providers/%s.yaml" . }}
+  {{- $content := $.Files.Get $path }}
+  {{- if not $content }}
+  {{- fail (printf "gateway-lens: unknown rbac.providers entry %q (no providers/%s.yaml found in chart)" . .) }}
+  {{- end }}
+  {{- range ($content | fromYaml).rules }}
+  - apiGroups:
+      {{- toYaml .apiGroups | nindent 6 }}
+    resources:
+      {{- toYaml .resources | nindent 6 }}
+    verbs: ["watch", "list", "get"]
+  {{- end }}
+  {{- end }}
+  {{- range .Values.rbac.extraRules }}
+  - apiGroups:
+      {{- toYaml .apiGroups | nindent 6 }}
+    resources:
+      {{- toYaml .resources | nindent 6 }}
+    verbs: ["watch", "list", "get"]
+  {{- end }}
