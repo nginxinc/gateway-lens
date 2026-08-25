@@ -23,6 +23,14 @@ builds:
       - -s -w
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
+
+source:
+  enabled: true
+sboms:
+  - id: source
+    artifacts: source
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}.sbom.spdx.json"
 changelog:
   use: github-native
 dockers_v2:
