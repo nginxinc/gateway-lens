@@ -70,7 +70,7 @@ kubectl apply -f deploy/manifests-nginx-gateway-fabric.yaml
 Provided in [`charts/gateway-lens`](charts/gateway-lens):
 
 ```sh
-helm install gateway-lens oci://ghcr.io/nginxinc/gateway-lens/charts/gateway-lens
+helm install gateway-lens oci://ghcr.io/nginxinc/charts/gateway-lens
 ```
 
 If your cluster's Gateway API implementation defines its own extension CRDs,
@@ -78,7 +78,7 @@ set `rbac.providers` to its name so the chart's `ClusterRole` covers them
 too, e.g. for [NGINX Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric):
 
 ```sh
-helm install gateway-lens oci://ghcr.io/nginxinc/gateway-lens/charts/gateway-lens --set rbac.providers={nginx-gateway-fabric}
+helm install gateway-lens oci://ghcr.io/nginxinc/charts/gateway-lens --set rbac.providers={nginx-gateway-fabric}
 ```
 
 See [`charts/gateway-lens/README.md`](charts/gateway-lens/README.md#providers)
