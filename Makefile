@@ -45,7 +45,7 @@ helm-lint: ## Lint the Helm chart
 
 .PHONY: helm-unittest
 helm-unittest: ## Run the Helm chart's unit tests (helm-unittest, via Docker)
-	docker run --rm -v $(CURDIR):/apps -w /apps $(HELM_UNITTEST_IMAGE) charts/gateway-lens
+	docker run --rm --user "$(shell id -u):$(shell id -g)" -e HOME=/tmp -v $(CURDIR):/apps -w /apps $(HELM_UNITTEST_IMAGE) charts/gateway-lens
 
 .PHONY: generate-manifests
 generate-manifests: ## Regenerate deploy/*.yaml from the Helm chart's default values
