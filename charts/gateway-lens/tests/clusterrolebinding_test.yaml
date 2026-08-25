@@ -44,6 +44,27 @@ tests:
           path: metadata.name
           value: namespace-a-my-release-gateway-lens
 
+  - it: should stay within the 63-char name limit and append a hash (not just truncate) when the namespace-qualified name would otherwise be too long, so two long names differing only in their tail don't collide
+    release:
+      name: my-release
+      namespace: a-very-long-namespace-name-that-pushes-the-total-length-past-63-chars-A
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: "^.{1,63}$"
+      - matchRegex:
+          path: metadata.name
+          pattern: "-[0-9a-f]{8}$"
+
+  - it: should produce a different hashed name than a similarly long namespace differing only near the truncation point
+    release:
+      name: my-release
+      namespace: a-very-long-namespace-name-that-pushes-the-total-length-past-63-chars-B
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: "-[0-9a-f]{8}$"
+
   - it: should reference the custom serviceAccount name when configured
     set:
       serviceAccount.name: custom-sa

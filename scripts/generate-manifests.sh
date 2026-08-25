@@ -30,6 +30,8 @@ generate() {
 
 generate deploy/manifests.yaml
 
+rm -f deploy/manifests-*.yaml
+
 for provider_file in "${chart}"/providers/*.yaml; do
 	provider=$(basename "${provider_file}" .yaml)
 	generate "deploy/manifests-${provider}.yaml" --set "rbac.providers[0]=${provider}"

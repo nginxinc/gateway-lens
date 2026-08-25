@@ -44,14 +44,25 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Service account name.
 */}}
 {{- define "gateway-lens.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
 {{- default (include "gateway-lens.fullname" .) .Values.serviceAccount.name -}}
+{{- else if .Values.serviceAccount.name -}}
+{{- .Values.serviceAccount.name -}}
+{{- else -}}
+{{- fail "gateway-lens: serviceAccount.name must be set when serviceAccount.create is false" -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
 ClusterRole/Binding names.
 */}}
 {{- define "gateway-lens.clusterScopedName" -}}
-{{- printf "%s-%s" .Release.Namespace (include "gateway-lens.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- $full := printf "%s-%s" .Release.Namespace (include "gateway-lens.fullname" .) -}}
+{{- if gt (len $full) 63 -}}
+{{- printf "%s-%s" ($full | trunc 54 | trimSuffix "-") ($full | sha256sum | trunc 8) -}}
+{{- else -}}
+{{- $full | trimSuffix "-" -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -64,6 +75,6 @@ Container args built from the explicit values fields, plus any extraArgs appende
 - --namespaces={{ join "," .Values.namespaces }}
 {{- end }}
 {{- range .Values.extraArgs }}
-- {{ . }}
+- {{ . | quote }}
 {{- end }}
 {{- end -}}

@@ -31,7 +31,7 @@ tests:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: Always
 
-  - it: should build container args from port, logLevel, namespaces, and extraArgs
+  - it: should build container args from port, logLevel, namespaces, and extraArgs, quoting each extraArgs value
     set:
       port: 9090
       logLevel: debug
@@ -40,6 +40,7 @@ tests:
         - bar
       extraArgs:
         - --some-flag=value
+        - "--header=foo: bar"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].args
@@ -48,6 +49,7 @@ tests:
             - --log-level=debug
             - --namespaces=foo,bar
             - --some-flag=value
+            - "--header=foo: bar"
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 9090
@@ -149,6 +151,25 @@ tests:
           path: spec.template.metadata.annotations["some.annotation/key"]
           value: some-value
 
+  - it: should not let podLabels override the reserved selector labels
+    release:
+      name: my-release
+    set:
+      podLabels:
+        app.kubernetes.io/name: some-other-name
+        app.kubernetes.io/instance: some-other-instance
+        team: platform
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: gateway-lens
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/instance"]
+          value: my-release
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: platform
+
   - it: should not render pod annotations by default
     asserts:
       - notExists:
@@ -181,15 +202,14 @@ tests:
           path: spec.template.spec.automountServiceAccountToken
           value: true
 
-  - it: should default serviceAccountName to the release fullname when creation is disabled and no name given
+  - it: should fail the render when creation is disabled and no name is given
     release:
       name: my-release
     set:
       serviceAccount.create: false
     asserts:
-      - equal:
-          path: spec.template.spec.serviceAccountName
-          value: my-release-gateway-lens
+      - failedTemplate:
+          errorMessage: "gateway-lens: serviceAccount.name must be set when serviceAccount.create is false"
 
   - it: should use the configured serviceAccount name when creation is disabled
     set:

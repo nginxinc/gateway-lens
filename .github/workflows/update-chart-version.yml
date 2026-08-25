@@ -27,10 +27,15 @@ jobs:
           go-version: stable
           cache-dependency-path: go.sum
       - name: Update Chart.yaml
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
-          version="${{ inputs.version }}"
-          version="${version#v}"
-          yq -i ".version = \"${version}\" | .appVersion = \"${version}\"" charts/gateway-lens/Chart.yaml
+          if [[ ! "${VERSION_INPUT}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version input '${VERSION_INPUT}' is not a valid semantic version (expected e.g. v1.2.3 or 1.2.3)"
+            exit 1
+          fi
+          export version="${VERSION_INPUT#v}"
+          yq -i '.version = strenv(version) | .appVersion = strenv(version)' charts/gateway-lens/Chart.yaml
       - name: Regenerate Generated Files
         run: make generate
       - name: Create Pull Request
