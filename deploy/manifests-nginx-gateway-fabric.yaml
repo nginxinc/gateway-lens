@@ -36,6 +36,23 @@ rules:
     resources:
       - customresourcedefinitions
     verbs: ["watch", "list", "get"]
+  - apiGroups:
+      - gateway.nginx.org
+    resources:
+      - nginxgateways
+      - nginxproxies
+      - clientsettingspolicies
+      - observabilitypolicies
+      - upstreamsettingspolicies
+      - authenticationfilters
+      - proxysettingspolicies
+      - ratelimitpolicies
+      - wafpolicies
+      - snippetsfilters
+      - snippetspolicies
+      - payloadprocessors
+      - externalloadbalancers
+    verbs: ["watch", "list", "get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

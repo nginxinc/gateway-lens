@@ -1,0 +1,21 @@
+# Provider: NGINX Gateway Fabric (https://github.com/nginx/nginx-gateway-fabric)
+#
+# Grants read access to NGINX Gateway Fabric's custom Gateway API extension
+# CRDs so gateway-lens can resolve parametersRef, extensionRef, and policy
+# instances that reference them.
+rules:
+  - apiGroups: ["gateway.nginx.org"]
+    resources:
+      - nginxgateways
+      - nginxproxies
+      - clientsettingspolicies
+      - observabilitypolicies
+      - upstreamsettingspolicies
+      - authenticationfilters
+      - proxysettingspolicies
+      - ratelimitpolicies
+      - wafpolicies
+      - snippetsfilters
+      - snippetspolicies
+      - payloadprocessors
+      - externalloadbalancers

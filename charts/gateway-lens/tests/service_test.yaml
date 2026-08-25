@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: service
+templates:
+  - service.yaml
+tests:
+  - it: should render a ClusterIP Service on port 80 by default
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports[0].port
+          value: 80
+      - equal:
+          path: spec.ports[0].targetPort
+          value: http
+      - equal:
+          path: spec.ports[0].name
+          value: http
+
+  - it: should use the configured service type and port
+    set:
+      service.type: LoadBalancer
+      service.port: 8888
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+      - equal:
+          path: spec.ports[0].port
+          value: 8888
+
+  - it: should select pods via the selector labels helper
+    release:
+      name: my-release
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/name"]
+          value: gateway-lens
+      - equal:
+          path: spec.selector["app.kubernetes.io/instance"]
+          value: my-release
+
+  - it: should name and namespace the resource after the release
+    release:
+      name: my-release
+      namespace: my-namespace
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-release-gateway-lens
+      - equal:
+          path: metadata.namespace
+          value: my-namespace

@@ -1,0 +1,250 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "affinity": {
+      "description": "Affinity rules for the Pod.",
+      "required": [],
+      "title": "affinity",
+      "type": "object"
+    },
+    "extraArgs": {
+      "description": "Extra CLI args passed to the container.",
+      "items": {
+        "required": []
+      },
+      "title": "extraArgs",
+      "type": "array"
+    },
+    "global": {
+      "description": "Global values are values that can be accessed from any chart or subchart by exactly the same name.",
+      "required": [],
+      "title": "global",
+      "type": "object"
+    },
+    "image": {
+      "properties": {
+        "pullPolicy": {
+          "default": "IfNotPresent",
+          "description": "The image pull policy for the gateway-lens container.",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ],
+          "required": [],
+          "title": "pullPolicy"
+        },
+        "repository": {
+          "default": "ghcr.io/nginxinc/gateway-lens",
+          "description": "The gateway-lens container image repository.",
+          "title": "repository",
+          "type": "string"
+        },
+        "tag": {
+          "default": "",
+          "description": "The gateway-lens container image tag.",
+          "title": "tag",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "image",
+      "type": "object"
+    },
+    "logLevel": {
+      "default": "info",
+      "description": "Log level for the controller. Passed to the container as `--log-level`.",
+      "enum": [
+        "debug",
+        "info",
+        "error",
+        "panic"
+      ],
+      "required": [],
+      "title": "logLevel"
+    },
+    "namespaces": {
+      "description": "List of namespaces to watch. If empty, all namespaces are watched.\nPassed to the container as a comma-separated `--namespaces` flag.",
+      "items": {
+        "required": []
+      },
+      "title": "namespaces",
+      "type": "array"
+    },
+    "nodeSelector": {
+      "description": "Node selector for the Pod.",
+      "required": [],
+      "title": "nodeSelector",
+      "type": "object"
+    },
+    "podAnnotations": {
+      "description": "Extra annotations to add to the Pod.",
+      "required": [],
+      "title": "podAnnotations",
+      "type": "object"
+    },
+    "podLabels": {
+      "description": "Extra labels to add to the Pod.",
+      "required": [],
+      "title": "podLabels",
+      "type": "object"
+    },
+    "port": {
+      "default": 8080,
+      "description": "Port for the dashboard HTTP server. Passed to the container as `--port`.",
+      "maximum": 65535,
+      "minimum": 1,
+      "title": "port",
+      "type": "integer"
+    },
+    "rbac": {
+      "description": "RBAC for Gateway API extension CRDs (policies, parametersRef/extensionRef\ntargets) that gateway-lens discovers at runtime and can't know about\nahead of time. See `charts/gateway-lens/providers/` and the chart README.",
+      "properties": {
+        "extraRules": {
+          "description": "Additional raw RBAC rules (`apiGroups`/`resources` only — verbs are\nalways `watch`/`list`/`get`) for CRDs not covered by a provider file, e.g.\n`[{apiGroups: [\"gateway.example.io\"], resources: [\"someextensionpolicies\"]}]`.",
+          "items": {
+            "properties": {
+              "apiGroups": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "resources": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "apiGroups",
+              "resources"
+            ],
+            "type": "object"
+          },
+          "required": [],
+          "title": "extraRules"
+        },
+        "providers": {
+          "description": "Names of curated provider rule sets to include, each corresponding to\na `providers/\u003cname\u003e.yaml` file shipped in this chart, e.g.\n`[\"nginx-gateway-fabric\"]`.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "required": [],
+          "title": "providers"
+        }
+      },
+      "required": [],
+      "title": "rbac",
+      "type": "object"
+    },
+    "replicaCount": {
+      "default": 1,
+      "description": "Number of gateway-lens Deployment replicas to run.",
+      "title": "replicaCount",
+      "type": "integer"
+    },
+    "resources": {
+      "description": "Resource requests and/or limits for the gateway-lens container.",
+      "properties": {
+        "limits": {
+          "properties": {
+            "memory": {
+              "default": "128Mi",
+              "title": "memory",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "limits",
+          "type": "object"
+        },
+        "requests": {
+          "properties": {
+            "cpu": {
+              "default": "50m",
+              "title": "cpu",
+              "type": "string"
+            },
+            "memory": {
+              "default": "64Mi",
+              "title": "memory",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "requests",
+          "type": "object"
+        }
+      },
+      "required": [],
+      "title": "resources",
+      "type": "object"
+    },
+    "service": {
+      "properties": {
+        "port": {
+          "default": 80,
+          "description": "The Service port.",
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "port",
+          "type": "integer"
+        },
+        "type": {
+          "default": "ClusterIP",
+          "description": "The Kubernetes Service type.",
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer"
+          ],
+          "required": [],
+          "title": "type"
+        }
+      },
+      "required": [],
+      "title": "service",
+      "type": "object"
+    },
+    "serviceAccount": {
+      "properties": {
+        "annotations": {
+          "description": "Annotations to add to the ServiceAccount.",
+          "required": [],
+          "title": "annotations",
+          "type": "object"
+        },
+        "create": {
+          "default": true,
+          "description": "Whether to create a ServiceAccount for gateway-lens.",
+          "title": "create",
+          "type": "boolean"
+        },
+        "name": {
+          "default": "",
+          "description": "The name of the ServiceAccount to use.",
+          "title": "name",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "serviceAccount",
+      "type": "object"
+    },
+    "tolerations": {
+      "description": "Tolerations for the Pod.",
+      "items": {
+        "required": []
+      },
+      "title": "tolerations",
+      "type": "array"
+    }
+  },
+  "required": [],
+  "type": "object"
+}
