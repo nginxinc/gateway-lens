@@ -42,7 +42,6 @@ signs:
       - "${artifact}"
       - "--yes"
     artifacts: checksum
-    disable: "{{ .IsSnapshot }}"
 
 changelog:
   use: github-native

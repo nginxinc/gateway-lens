@@ -183,7 +183,7 @@ jobs:
       - name: Build and Release
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
-          args: ${{ startsWith(github.ref, 'refs/tags/') && 'release --clean' || 'release --snapshot --skip=publish --clean' }}
+          args: ${{ startsWith(github.ref, 'refs/tags/') && 'release --clean' || 'release --snapshot --skip=publish,sign --clean' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
