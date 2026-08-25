@@ -10,7 +10,7 @@ Kubernetes cluster.
 ## Installing
 
 ```sh
-helm install gateway-lens ./charts/gateway-lens
+helm install gateway-lens oci://ghcr.io/nginxinc/gateway-lens/charts/gateway-lens
 ```
 
 This installs Gateway Lens into the current namespace, exposed via a

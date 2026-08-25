@@ -56,10 +56,31 @@ serviceAccount:
 # targets) that gateway-lens discovers at runtime and can't know about
 # ahead of time. See `charts/gateway-lens/providers/` and the chart README.
 rbac:
+  # @schema
+  # items:
+  #   type: string
+  #   minLength: 1
+  # @schema
   # -- Names of curated provider rule sets to include, each corresponding to
   # a `providers/<name>.yaml` file shipped in this chart, e.g.
   # `["nginx-gateway-fabric"]`.
   providers: []
+  # @schema
+  # items:
+  #   type: object
+  #   required: [apiGroups, resources]
+  #   properties:
+  #     apiGroups:
+  #       type: array
+  #       items:
+  #         type: string
+  #         minLength: 1
+  #     resources:
+  #       type: array
+  #       items:
+  #         type: string
+  #         minLength: 1
+  # @schema
   # -- Additional raw RBAC rules (`apiGroups`/`resources` only — verbs are
   # always `watch`/`list`/`get`) for CRDs not covered by a provider file, e.g.
   # `[{apiGroups: ["gateway.example.io"], resources: ["someextensionpolicies"]}]`.

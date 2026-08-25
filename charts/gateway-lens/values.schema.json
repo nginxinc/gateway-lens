@@ -103,18 +103,39 @@
         "extraRules": {
           "description": "Additional raw RBAC rules (`apiGroups`/`resources` only — verbs are\nalways `watch`/`list`/`get`) for CRDs not covered by a provider file, e.g.\n`[{apiGroups: [\"gateway.example.io\"], resources: [\"someextensionpolicies\"]}]`.",
           "items": {
-            "required": []
+            "properties": {
+              "apiGroups": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "resources": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "apiGroups",
+              "resources"
+            ],
+            "type": "object"
           },
-          "title": "extraRules",
-          "type": "array"
+          "required": [],
+          "title": "extraRules"
         },
         "providers": {
           "description": "Names of curated provider rule sets to include, each corresponding to\na `providers/\u003cname\u003e.yaml` file shipped in this chart, e.g.\n`[\"nginx-gateway-fabric\"]`.",
           "items": {
-            "required": []
+            "minLength": 1,
+            "type": "string"
           },
-          "title": "providers",
-          "type": "array"
+          "required": [],
+          "title": "providers"
         }
       },
       "required": [],
