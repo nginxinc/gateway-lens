@@ -18,13 +18,13 @@ const shutdownTimeout = 5 * time.Second
 // HTTPServerRunnable is a manager runnable that serves the dashboard HTTP API/UI.
 type HTTPServerRunnable struct {
 	// reader supplies live Gateway API resources from the informer cache.
-	reader        liveResourcesReader
+	reader liveResourcesReader
 	// logger is the structured logger for server lifecycle events.
-	logger        logr.Logger
+	logger logr.Logger
 	// listenAddress is the TCP address the server binds to.
 	listenAddress string
 	// boundAddress stores the actual address once the listener is active.
-	boundAddress  atomic.Pointer[string]
+	boundAddress atomic.Pointer[string]
 }
 
 // NewHTTPServerRunnable creates a dashboard server runnable.

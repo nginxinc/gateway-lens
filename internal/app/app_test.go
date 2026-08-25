@@ -210,6 +210,8 @@ func TestSSEEndpointStreamsChangedEvents(t *testing.T) {
 	g.Expect(lines).To(ContainElement("event: changed"))
 	g.Expect(lines).To(ContainElement("data: {}"))
 
+	_ = sseResp.Body.Close()
+
 	cancel()
 	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
 }
@@ -273,6 +275,9 @@ func TestEndpointsRejectNonGETMethods(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		resp, err := http.DefaultClient.Do(req)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = io.Copy(io.Discard, resp.Body)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		_ = resp.Body.Close()
