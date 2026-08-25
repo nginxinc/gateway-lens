@@ -179,9 +179,20 @@ tests:
           path: spec.template.spec.automountServiceAccountToken
           value: true
 
-  - it: should use the configured serviceAccount name, or "default" when creation is disabled and no name given
+  - it: should default serviceAccountName to the release fullname when creation is disabled and no name given
+    release:
+      name: my-release
     set:
       serviceAccount.create: false
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: my-release-gateway-lens
+
+  - it: should use the configured serviceAccount name when creation is disabled
+    set:
+      serviceAccount.create: false
+      serviceAccount.name: default
     asserts:
       - equal:
           path: spec.template.spec.serviceAccountName

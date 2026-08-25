@@ -44,11 +44,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Service account name.
 */}}
 {{- define "gateway-lens.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create -}}
 {{- default (include "gateway-lens.fullname" .) .Values.serviceAccount.name -}}
-{{- else -}}
-{{- default "default" .Values.serviceAccount.name -}}
-{{- end -}}
 {{- end -}}
 
 {{/*
