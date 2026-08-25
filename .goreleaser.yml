@@ -31,6 +31,19 @@ sboms:
     artifacts: source
     documents:
       - "{{ .ProjectName }}_{{ .Version }}.sbom.spdx.json"
+    disable: "{{ .IsSnapshot }}"
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    disable: "{{ .IsSnapshot }}"
+
 changelog:
   use: github-native
 dockers_v2:
