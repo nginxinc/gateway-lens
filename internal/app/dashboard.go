@@ -195,14 +195,14 @@ func serveSSE(w http.ResponseWriter, r *http.Request, reader liveResourcesReader
 		return
 	}
 
+	changeCh := reader.Subscribe()
+	defer reader.Unsubscribe(changeCh)
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
 	flusher.Flush()
-
-	changeCh := reader.Subscribe()
-	defer reader.Unsubscribe(changeCh)
 
 	logger.V(1).Info("SSE client connected")
 	defer logger.V(1).Info("SSE client disconnected")
