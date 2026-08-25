@@ -4,12 +4,14 @@ templates:
   - deployment.yaml
 tests:
   - it: should render a Deployment with the default image repository and appVersion tag
+    chart:
+      appVersion: "1.2.3"
     asserts:
       - isKind:
           of: Deployment
       - equal:
           path: spec.template.spec.containers[0].image
-          value: ghcr.io/nginxinc/gateway-lens:latest
+          value: ghcr.io/nginxinc/gateway-lens:1.2.3
       - equal:
           path: spec.template.spec.containers[0].imagePullPolicy
           value: IfNotPresent

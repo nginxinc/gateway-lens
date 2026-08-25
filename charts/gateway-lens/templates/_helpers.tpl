@@ -48,6 +48,13 @@ Service account name.
 {{- end -}}
 
 {{/*
+ClusterRole/Binding names.
+*/}}
+{{- define "gateway-lens.clusterScopedName" -}}
+{{- printf "%s-%s" .Release.Namespace (include "gateway-lens.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 Container args built from the explicit values fields, plus any extraArgs appended.
 */}}
 {{- define "gateway-lens.args" -}}

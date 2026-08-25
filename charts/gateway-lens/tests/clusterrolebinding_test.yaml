@@ -3,7 +3,7 @@ suite: clusterrolebinding
 templates:
   - clusterrolebinding.yaml
 tests:
-  - it: should bind the ServiceAccount to the ClusterRole, both named after the fullname
+  - it: should bind the ServiceAccount to the ClusterRole, both named after the namespace-qualified fullname
     release:
       name: my-release
       namespace: my-namespace
@@ -12,7 +12,7 @@ tests:
           of: ClusterRoleBinding
       - equal:
           path: metadata.name
-          value: my-release-gateway-lens
+          value: my-namespace-my-release-gateway-lens
       - equal:
           path: subjects[0].kind
           value: ServiceAccount
@@ -30,7 +30,19 @@ tests:
           value: rbac.authorization.k8s.io
       - equal:
           path: roleRef.name
+          value: my-namespace-my-release-gateway-lens
+
+  - it: should produce different ClusterRoleBinding names for the same release name in different namespaces
+    release:
+      name: my-release
+      namespace: namespace-a
+    asserts:
+      - notEqual:
+          path: metadata.name
           value: my-release-gateway-lens
+      - equal:
+          path: metadata.name
+          value: namespace-a-my-release-gateway-lens
 
   - it: should reference the custom serviceAccount name when configured
     set:
