@@ -3,7 +3,7 @@ name: gateway-lens
 description: A diagnostic dashboard for Kubernetes Gateway API resources.
 type: application
 version: 0.1.0
-appVersion: "latest"
+appVersion: "0.1.0"
 home: https://github.com/nginxinc/gateway-lens
 sources:
   - https://github.com/nginxinc/gateway-lens
