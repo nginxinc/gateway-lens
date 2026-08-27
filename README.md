@@ -1,3 +1,10 @@
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/nginxinc/gateway-lens/badge)](https://securityscorecards.dev/viewer/?uri=github.com/nginxinc/gateway-lens)
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](/SUPPORT.md)
+[![Community Forum](https://img.shields.io/badge/community-forum-009639?logo=discourse&link=https%3A%2F%2Fcommunity.nginx.org)](https://community.nginx.org)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/license/apache-2-0)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-3.0-4baaaa.svg)](/CODE_OF_CONDUCT.md)
+
 # Gateway Lens
 
 Gateway Lens is a diagnostic tool that watches Kubernetes
@@ -160,3 +167,13 @@ VITE_API_BASE_URL=http://localhost:8080 npm run dev
 
 This runs the Vite dev server (default port 5173) proxying API calls to a
 running `gateway-lens` process.
+
+## Contributing
+
+Please see the [contributing guide](/CONTRIBUTING.md) for guidelines on how to best contribute to this project.
+
+## License
+
+[Apache License, Version 2.0](/LICENSE)
+
+&copy; [F5, Inc.](https://www.f5.com/) 2026
