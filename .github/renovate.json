@@ -1,3 +1,34 @@
 {
-  "extends": ["config:recommended"]
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":maintainLockFilesWeekly",
+    "schedule:weekly"
+  ],
+  "automerge": true,
+  "automergeStrategy": "squash",
+  "configMigration": true,
+  "commitBodyTable": true,
+  "rebaseWhen": "behind-base-branch",
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths", "npmDedupe"],
+  "packageRules": [
+    {
+      "description": "Group all GitHub Actions updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update tool versions pinned via '# renovate:' comments in the Makefile",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>github-tags) depName=(?<depName>\\S+)\\s+[A-Z_]+\\s*\\??=\\s*(?<currentValue>\\S+)",
+        "# renovate: datasource=(?<datasource>docker) depName=(?<depName>\\S+)\\s+[A-Z_]+\\s*\\??=\\s*\\S+?:(?<currentValue>\\S+)"
+      ]
+    }
+  ]
 }
