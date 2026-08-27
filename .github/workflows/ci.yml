@@ -137,6 +137,62 @@ jobs:
       - name: Run Tests
         run: make dashboard-test
 
+  scan:
+    name: Scan Image and Dashboard
+    needs:
+      - lint
+      - dashboard-lint
+      - verify-generated
+      - unit-tests
+      - dashboard-unit-tests
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Golang Environment
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache-dependency-path: go.sum
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Build Local Image
+        run: make image GOOS=linux GOARCH=amd64
+      - name: Scan Image
+        id: scan
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          image: gateway-lens:dev
+          only-fixed: true
+          add-cpes-if-none: true
+          fail-build: false
+      - name: Upload Image Scan Result to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        continue-on-error: true
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: build-gateway-lens
+      - name: Scan Dashboard Dependencies
+        id: scan-dashboard
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
+        with:
+          path: dashboard
+          only-fixed: true
+          add-cpes-if-none: true
+          fail-build: false
+      - name: Upload Dashboard Scan Result to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        continue-on-error: true
+        with:
+          sarif_file: ${{ steps.scan-dashboard.outputs.sarif }}
+          category: dashboard-dependencies
+
   build:
     name: Build
     needs:
