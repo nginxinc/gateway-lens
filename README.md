@@ -13,17 +13,7 @@ presents them as an interactive topology graph in a browser dashboard.
 
 > Requires **Gateway API v1.6+** CRDs to be installed in the cluster.
 
-## Architecture
-
-The Go process uses **controller-runtime** to watch Gateway API resources and
-build a topology snapshot of nodes, edges, conditions, and annotations. A
-built-in HTTP server exposes this snapshot at `/data` and serves the compiled
-React dashboard at all other paths.
-
-The [dashboard frontend](dashboard) is a React + TypeScript application
-built with Vite. It receives change notifications via Server-Sent Events and
-fetches `/data` on demand, rendering the topology using React Flow with
-automatic dagre layout.
+![alt text](dashboard/image.png)
 
 ## Getting Started
 
@@ -151,6 +141,18 @@ access to a kubeconfig:
 ```sh
 make image
 ```
+
+## Architecture
+
+The Go process uses **controller-runtime** to watch Gateway API resources and
+build a topology snapshot of nodes, edges, conditions, and annotations. A
+built-in HTTP server exposes this snapshot at `/data` and serves the compiled
+React dashboard at all other paths.
+
+The [dashboard frontend](dashboard) is a React + TypeScript application
+built with Vite. It receives change notifications via Server-Sent Events and
+fetches `/data` on demand, rendering the topology using React Flow with
+automatic dagre layout.
 
 ## Developer Commands
 
