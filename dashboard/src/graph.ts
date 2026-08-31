@@ -30,6 +30,9 @@ export const graphNodeHeight = 122
 export const groupNodeCollapseThreshold = 8
 export const referenceGrantSummaryAttribute = 'ReferenceGrant Summary'
 
+const selectionRingColor = 'rgba(37, 99, 235, 0.9)'
+const selectionGlowColor = 'rgba(37, 99, 235, 0.55)'
+
 const groupNodePrefix = '__group__'
 const namespaceGroupPrefix = '__ns__'
 
@@ -334,14 +337,18 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
       : isSelected
         ? tone.selectedStroke
         : tone.stroke
-    const borderWidth = hasNegativeCondition ? 2.6 : 1
-    const boxShadow = hasNegativeCondition
+    const borderWidth = hasNegativeCondition || isSelected ? 2.6 : 1
+    const selectionRing = isSelected
+      ? `0 0 0 4px ${selectionRingColor}, 0 0 24px 2px ${selectionGlowColor}`
+      : ''
+    const errorGlow = hasNegativeCondition
       ? isSelected
         ? '0 0 0 4px rgba(193, 49, 38, 0.2), 0 22px 60px rgba(31, 43, 39, 0.18)'
         : '0 0 0 3px rgba(193, 49, 38, 0.16), 0 12px 30px rgba(31, 43, 39, 0.1)'
       : isSelected
         ? '0 22px 60px rgba(31, 43, 39, 0.18)'
         : '0 12px 30px rgba(31, 43, 39, 0.1)'
+    const boxShadow = selectionRing ? `${selectionRing}, ${errorGlow}` : errorGlow
 
     return {
       data: {
@@ -631,7 +638,7 @@ export function visibleGraphSnapshot(snapshot: DashboardPayload): DashboardPaylo
 }
 
 export function resolveSelectedKey(snapshot: DashboardPayload, currentSelectedKey: string) {
-  if (!snapshot.nodes.length) {
+  if (!currentSelectedKey) {
     return ''
   }
 
@@ -639,7 +646,7 @@ export function resolveSelectedKey(snapshot: DashboardPayload, currentSelectedKe
     return currentSelectedKey
   }
 
-  return resourceKey(snapshot.nodes[0].ref)
+  return ''
 }
 
 function visualEdgeEndpoints(edge: DashboardEdge) {
