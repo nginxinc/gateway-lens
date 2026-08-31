@@ -287,6 +287,14 @@ export function App() {
     })
   }, [])
 
+  const hideAllKinds = useCallback(() => {
+    setHiddenKinds(new Set(allKinds))
+  }, [allKinds])
+
+  const showAllKinds = useCallback(() => {
+    setHiddenKinds(new Set())
+  }, [])
+
   const toggleCollapsedKind = useCallback((kind: string) => {
     setCollapsedKinds((prev) => {
       const next = new Set(prev)
@@ -357,6 +365,22 @@ export function App() {
         <div className="filter-group">
           <label className="filter-label">Kinds</label>
           <div className="filter-chips">
+            <button
+              className="filter-chip filter-chip--action"
+              disabled={allKinds.length === 0 || hiddenKinds.size === allKinds.length}
+              onClick={hideAllKinds}
+              type="button"
+            >
+              Deselect all
+            </button>
+            <button
+              className="filter-chip filter-chip--action"
+              disabled={hiddenKinds.size === 0}
+              onClick={showAllKinds}
+              type="button"
+            >
+              Select all
+            </button>
             {allKinds.map((kind) => {
               const isHidden = hiddenKinds.has(kind)
               const isCollapsible = collapsibleKinds.has(kind)
@@ -404,14 +428,18 @@ export function App() {
         ) : null}
         <div className="filter-group">
           <label className="filter-label" htmlFor="search-filter">Search</label>
-          <input
-            className="filter-input"
-            id="search-filter"
-            onChange={(e) => setSearchFilter(e.target.value)}
-            placeholder="Filter by name…"
-            type="text"
-            value={searchFilter}
-          />
+          <div className="search-control">
+            <input
+              aria-describedby="search-hint"
+              className="filter-input search-input"
+              id="search-filter"
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="name or namespace/name"
+              title="Type any text to match name or namespace. Use namespace/name (e.g. default/my-gateway) to match both."
+              type="text"
+              value={searchFilter}
+            />
+          </div>
         </div>
 
       </section>

@@ -458,6 +458,21 @@
   text-decoration: line-through;
 }
 
+.filter-chip--action {
+  background: rgba(93, 87, 78, 0.08);
+  border-color: rgba(93, 87, 78, 0.22);
+  color: #5d574e;
+}
+
+.filter-chip--action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.filter-chip--action:not(:disabled):hover {
+  box-shadow: 0 2px 8px rgba(41, 37, 32, 0.12);
+}
+
 .filter-chip-wrapper {
   display: inline-flex;
   align-items: stretch;
@@ -517,6 +532,31 @@
   border-color: rgba(27, 104, 87, 0.5);
   outline: none;
   box-shadow: 0 0 0 3px rgba(27, 104, 87, 0.1);
+}
+
+.search-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-input {
+  min-width: 200px;
+}
+
+.search-hint {
+  color: #948c7c;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  margin: 0;
+  max-width: 260px;
+}
+
+.search-hint code {
+  background: rgba(93, 87, 78, 0.1);
+  border-radius: 4px;
+  font-size: 0.95em;
+  padding: 1px 4px;
 }
 
 /* Group node styling */

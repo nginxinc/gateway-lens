@@ -85,18 +85,33 @@ export function nodeHasNegativeCondition(node: DashboardNode) {
   return (node.conditions ?? []).some(isNegativeCondition)
 }
 
+export function matchesSearch(ref: DashboardResourceRef, searchFilter: string): boolean {
+  const trimmed = searchFilter.trim()
+  if (!trimmed) return true
+
+  const slashIndex = trimmed.indexOf('/')
+  if (slashIndex !== -1) {
+    const namespaceTerm = trimmed.slice(0, slashIndex).trim().toLowerCase()
+    const nameTerm = trimmed.slice(slashIndex + 1).trim().toLowerCase()
+    const namespaceMatches = namespaceTerm === '' || (ref.namespace ?? '').toLowerCase().includes(namespaceTerm)
+    const nameMatches = nameTerm === '' || ref.name.toLowerCase().includes(nameTerm)
+    return namespaceMatches && nameMatches
+  }
+
+  const term = trimmed.toLowerCase()
+  return ref.name.toLowerCase().includes(term) || (ref.namespace ?? '').toLowerCase().includes(term)
+}
+
 export function applyFilters(
   snapshot: DashboardPayload,
   hiddenKinds: Set<string>,
   namespaceFilter: string,
   searchFilter: string,
 ): DashboardPayload {
-  const search = searchFilter.toLowerCase().trim()
-
   const nodes = snapshot.nodes.filter((node) => {
     if (hiddenKinds.has(node.ref.kind)) return false
     if (namespaceFilter && node.ref.namespace !== namespaceFilter) return false
-    if (search && !node.ref.name.toLowerCase().includes(search)) return false
+    if (!matchesSearch(node.ref, searchFilter)) return false
     return true
   })
 
