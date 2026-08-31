@@ -394,10 +394,15 @@ describe('resolveSelectedKey', () => {
     expect(resolveSelectedKey(makePayload([node]), key)).toBe(key)
   })
 
-  it('falls back to first node if current key is gone', () => {
+  it('clears selection if current key no longer exists in snapshot', () => {
     const node = makeNode('Gateway', 'gw-1')
     const result = resolveSelectedKey(makePayload([node]), 'nonexistent')
-    expect(result).toBe(resourceKey(node.ref))
+    expect(result).toBe('')
+  })
+
+  it('never auto-selects when nothing was previously selected (deselect persists)', () => {
+    const node = makeNode('Gateway', 'gw-1')
+    expect(resolveSelectedKey(makePayload([node]), '')).toBe('')
   })
 })
 
@@ -470,6 +475,35 @@ describe('buildGraph', () => {
 
     // Selected node should have selectedFill background
     expect(flowNode.style?.background).toContain('1)')
+  })
+
+  it('applies a distinct selection glow ring to the selected node only', () => {
+    const selectedNode = makeNode('Gateway', 'gw-1', 'default')
+    const otherNode = makeNode('Gateway', 'gw-2', 'default')
+    const key = resourceKey(selectedNode.ref)
+    const snapshot = makePayload([selectedNode, otherNode])
+
+    const graph = buildGraph(snapshot, key)
+    const selectedFlowNode = graph.nodes.find((n) => n.id === key)
+    const otherFlowNode = graph.nodes.find((n) => n.id !== key)
+
+    expect(String(selectedFlowNode?.style?.boxShadow)).toContain('37, 99, 235')
+    expect(String(otherFlowNode?.style?.boxShadow)).not.toContain('37, 99, 235')
+  })
+
+  it('shows both the selection glow and the error glow when a selected node has an error', () => {
+    const node: DashboardNode = {
+      ...makeNode('Gateway', 'gw-1', 'default'),
+      conditions: [{type: 'Accepted', status: 'False'}],
+    }
+    const key = resourceKey(node.ref)
+    const snapshot = makePayload([node])
+
+    const graph = buildGraph(snapshot, key)
+    const boxShadow = String(graph.nodes[0].style?.boxShadow)
+
+    expect(boxShadow).toContain('37, 99, 235')
+    expect(boxShadow).toContain('193, 49, 38')
   })
 
   it('creates group-type nodes for group keys', () => {

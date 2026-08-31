@@ -173,9 +173,9 @@ export function App() {
   }, [payload, hiddenKinds, namespaceFilter, searchFilter, collapsedKinds])
 
   const deferredSelectedKey = useDeferredValue(selectedKey)
-  const selectedNode = payload?.nodes.find((node) => {
-    return resourceKey(node.ref) === deferredSelectedKey
-  }) ?? payload?.nodes[0] ?? null
+  const selectedNode = deferredSelectedKey
+    ? payload?.nodes.find((node) => resourceKey(node.ref) === deferredSelectedKey) ?? null
+    : null
 
   const relatedEdges = payload?.edges.filter((edge) => {
     if (!selectedNode) {
@@ -193,7 +193,8 @@ export function App() {
     return resolveSelectedKey(currentGraphPayload, selectedKey)
   })
 
-  // Rebuild graph whenever graphPayload changes.
+  // Rebuild graph whenever graphPayload changes, or the user changes the
+  // selection (so the selection glow styling actually gets (re)applied).
   useEffect(() => {
     if (!graphPayload) return
 
@@ -205,7 +206,7 @@ export function App() {
       setFlowNodes(graph.nodes)
       setFlowEdges(graph.edges)
     })
-  }, [graphPayload])
+  }, [graphPayload, selectedKey])
 
   const refreshSnapshot = useEffectEvent(async () => {
     try {
@@ -316,11 +317,17 @@ export function App() {
       return
     }
 
-    const nextSelectedKey = node.id
+    const nextSelectedKey = node.id === selectedKey ? '' : node.id
     startTransition(() => {
       setSelectedKey(nextSelectedKey)
     })
   }
+
+  const handlePaneClick = useCallback(() => {
+    startTransition(() => {
+      setSelectedKey('')
+    })
+  }, [])
 
   return (
     <main className="app-shell">
@@ -429,6 +436,7 @@ export function App() {
               nodesDraggable={false}
               nodeTypes={nodeTypes}
               onNodeClick={handleNodeClick}
+              onPaneClick={handlePaneClick}
               panOnScroll
               proOptions={{hideAttribution: true}}
             >
@@ -447,7 +455,9 @@ export function App() {
             <pre className="yaml-preview">
               {selectedNode
                 ? buildSelectedResourceYAML(selectedNode)
-                : 'Waiting for topology data.'}
+                : payload
+                  ? 'Click a resource in the graph to view its YAML.'
+                  : 'Waiting for topology data.'}
             </pre>
           </section>
 
@@ -490,7 +500,11 @@ export function App() {
               </InspectorSection>
             </>
           ) : (
-            <div className="empty-state">Waiting for topology data.</div>
+            <div className="empty-state">
+              {payload
+                ? 'Click a resource in the graph to inspect it.'
+                : 'Waiting for topology data.'}
+            </div>
           )}
         </aside>
       </section>
