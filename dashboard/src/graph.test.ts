@@ -33,6 +33,7 @@ import {
   groupNodeKey,
   isGroupNodeKey,
   isNamespaceGroupNodeId,
+  matchesSearch,
   namespaceGroupNodeId,
   nodeHasNegativeCondition,
   resolveGroupOverlaps,
@@ -208,6 +209,59 @@ describe('nodeHasNegativeCondition', () => {
 })
 
 // ---------------------------------------------------------------------------
+// matchesSearch
+// ---------------------------------------------------------------------------
+
+describe('matchesSearch', () => {
+  const ref = makeRef('HTTPRoute', 'route-1', 'ns-a')
+
+  it('returns true for an empty search', () => {
+    expect(matchesSearch(ref, '')).toBe(true)
+    expect(matchesSearch(ref, '   ')).toBe(true)
+  })
+
+  it('matches by name (case-insensitive) when there is no slash', () => {
+    expect(matchesSearch(ref, 'ROUTE-1')).toBe(true)
+    expect(matchesSearch(ref, 'nope')).toBe(false)
+  })
+
+  it('matches by namespace (case-insensitive) when there is no slash', () => {
+    expect(matchesSearch(ref, 'ns-a')).toBe(true)
+    expect(matchesSearch(ref, 'NS-A')).toBe(true)
+  })
+
+  it('does not match kind when there is no slash', () => {
+    expect(matchesSearch(ref, 'httproute')).toBe(false)
+  })
+
+  it('supports "namespace/name" syntax requiring both to match', () => {
+    expect(matchesSearch(ref, 'ns-a/route-1')).toBe(true)
+    expect(matchesSearch(ref, 'ns-a/nope')).toBe(false)
+    expect(matchesSearch(ref, 'wrong-ns/route-1')).toBe(false)
+  })
+
+  it('allows leaving one side of the slash blank', () => {
+    // "namespace/" matches any name in that namespace.
+    expect(matchesSearch(ref, 'ns-a/')).toBe(true)
+    expect(matchesSearch(ref, 'wrong-ns/')).toBe(false)
+    // "/name" matches that name regardless of namespace.
+    expect(matchesSearch(ref, '/route-1')).toBe(true)
+    expect(matchesSearch(ref, '/nope')).toBe(false)
+  })
+
+  it('trims whitespace around each side of the slash', () => {
+    expect(matchesSearch(ref, ' ns-a / route-1 ')).toBe(true)
+  })
+
+  it('handles a resource with no namespace', () => {
+    const clusterScoped = makeRef('GatewayClass', 'gc-1', undefined)
+    expect(matchesSearch(clusterScoped, 'gc-1')).toBe(true)
+    expect(matchesSearch(clusterScoped, '/gc-1')).toBe(true)
+    expect(matchesSearch(clusterScoped, 'default/gc-1')).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // applyFilters
 // ---------------------------------------------------------------------------
 
@@ -253,6 +307,23 @@ describe('applyFilters', () => {
     const result = applyFilters(snapshot, new Set(), '', 'ROUTE')
     expect(result.nodes).toHaveLength(1)
     expect(result.nodes[0].ref.name).toBe('route-1')
+  })
+
+  it('filters by search string matching namespace', () => {
+    const result = applyFilters(snapshot, new Set(), '', 'ns-b')
+    expect(result.nodes).toHaveLength(1)
+    expect(result.nodes[0].ref.name).toBe('gw-2')
+  })
+
+  it('does not match search strings against kind', () => {
+    const result = applyFilters(snapshot, new Set(), '', 'gatewayclass')
+    expect(result.nodes).toHaveLength(0)
+  })
+
+  it('filters by "namespace/name" syntax', () => {
+    const result = applyFilters(snapshot, new Set(), '', 'ns-a/gw-1')
+    expect(result.nodes).toHaveLength(1)
+    expect(result.nodes[0].ref.name).toBe('gw-1')
   })
 
   it('filters annotations along with nodes', () => {
