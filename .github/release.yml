@@ -1,11 +1,26 @@
 changelog:
   categories:
-    - title: "🚀 Features"
+    - title: 🚀 Features
       labels:
         - enhancement
-    - title: "🐛 Bug Fixes"
+    - title: 🐛 Bug Fixes
       labels:
         - bug
-    - title: "📦 Other Changes"
+    - title: 📦 Helm Chart
+      labels:
+        - helm-chart
+    - title: 🧪 Tests
+      labels:
+        - tests
+    - title: 📝 Documentation
+      labels:
+        - documentation
+    - title: 🔨 Maintenance
+      labels:
+        - chore
+    - title: ⬆️ Dependencies
+      labels:
+        - dependencies
+    - title: Other Changes
       labels:
         - "*"
