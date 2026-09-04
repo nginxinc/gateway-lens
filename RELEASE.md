@@ -8,7 +8,7 @@ You must have the proper permissions to run workflows and push tags.
 
 ### Steps
 
-1. Run the [Update Version](https://github.com/nginxinc/gateway-lens/actions/workflows/update-chart-version.yml) workflow with the new release version to update the version strings in the repository.
+1. Run the [Update Version](https://github.com/nginxinc/gateway-lens/actions/workflows/update-chart-version.yml) workflow with the new release version. This creates a pull request that updates the version strings in the repository.
 2. Merge this pull request in.
 3. With a local checkout of the repository, ensure you are on the latest commit, then create and push the release tag. For example:
 
