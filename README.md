@@ -13,8 +13,6 @@ presents them as an interactive topology graph in a browser dashboard.
 
 > Requires **Gateway API v1.6+** CRDs to be installed in the cluster.
 
-![alt text](dashboard/image.png)
-
 ## Getting Started
 
 There are two ways to run Gateway Lens: downloading and running the binary
