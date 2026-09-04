@@ -5,8 +5,6 @@ The dashboard is a single-page React application that visualizes Kubernetes
 topology graph. It is compiled into the Go binary at build time and served
 automatically when `gateway-lens` starts.
 
-![alt text](image.png)
-
 ## Tech Stack
 
 | Layer           | Technology                                           |
