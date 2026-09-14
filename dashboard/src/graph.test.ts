@@ -656,6 +656,52 @@ describe('buildGraph', () => {
     const nsGroupNodes = graph.nodes.filter((n) => n.type === 'namespaceGroup')
     expect(nsGroupNodes).toHaveLength(0)
   })
+
+  it('defaults to the light scheme when none is provided', () => {
+    const snapshot = makePayload([makeNode('Gateway', 'gw-1', 'default')])
+    expect(buildGraph(snapshot, '')).toEqual(buildGraph(snapshot, '', 'light'))
+  })
+
+  it('applies dark-scheme colors to node fill/stroke and edge labels', () => {
+    const gw = makeNode('Gateway', 'gw-1', 'default')
+    const route = makeNode('HTTPRoute', 'route-1', 'default')
+    const edge = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-1', 'listener', 'default')
+    const snapshot = makePayload([gw, route], [edge])
+
+    const lightGraph = buildGraph(snapshot, '', 'light')
+    const darkGraph = buildGraph(snapshot, '', 'dark')
+
+    expect(darkGraph.nodes[0].style?.background).not.toEqual(lightGraph.nodes[0].style?.background)
+    expect(darkGraph.edges[0].labelStyle).not.toEqual(lightGraph.edges[0].labelStyle)
+    expect(darkGraph.edges[0].labelBgStyle).not.toEqual(lightGraph.edges[0].labelBgStyle)
+  })
+
+  it('applies a distinct dark-scheme error glow color', () => {
+    const node: DashboardNode = {
+      ...makeNode('Gateway', 'gw-1', 'default'),
+      conditions: [{type: 'Accepted', status: 'False'}],
+    }
+    const snapshot = makePayload([node])
+
+    const lightBoxShadow = String(buildGraph(snapshot, '', 'light').nodes[0].style?.boxShadow)
+    const darkBoxShadow = String(buildGraph(snapshot, '', 'dark').nodes[0].style?.boxShadow)
+
+    expect(lightBoxShadow).toContain('193, 49, 38')
+    expect(darkBoxShadow).not.toContain('193, 49, 38')
+    expect(darkBoxShadow).toContain('255, 120, 105')
+  })
+
+  it('keeps the selection ring color identical across schemes', () => {
+    const node = makeNode('Gateway', 'gw-1', 'default')
+    const key = resourceKey(node.ref)
+    const snapshot = makePayload([node])
+
+    const lightBoxShadow = String(buildGraph(snapshot, key, 'light').nodes[0].style?.boxShadow)
+    const darkBoxShadow = String(buildGraph(snapshot, key, 'dark').nodes[0].style?.boxShadow)
+
+    expect(lightBoxShadow).toContain('37, 99, 235')
+    expect(darkBoxShadow).toContain('37, 99, 235')
+  })
 })
 
 // ---------------------------------------------------------------------------
