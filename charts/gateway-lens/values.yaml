@@ -40,6 +40,11 @@ logLevel: info
 # Passed to the container as a comma-separated `--namespaces` flag.
 namespaces: []
 
+# -- URL path prefix the dashboard is served under, for
+# deployments behind a reverse proxy or Gateway route mounted at a sub-path.
+# Passed to the container as `--base-path`. Leave empty to serve at the root path.
+basePath: ""
+
 # -- Extra CLI args passed to the container.
 extraArgs: []
 

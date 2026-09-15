@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 
 import type {DashboardEdge, DashboardNode, DashboardPayload, DashboardResourceRef} from '../types'
 import type {Node} from '@xyflow/react'
@@ -500,9 +500,21 @@ describe('buildSelectedResourceYAML', () => {
 // ---------------------------------------------------------------------------
 
 describe('apiURL', () => {
-  it('appends pathname to base', () => {
+  it('strips the leading slash so the path resolves relative to the current document', () => {
     // import.meta.env.VITE_API_BASE_URL is undefined in test, so base is ""
-    expect(apiURL('/api/graph')).toBe('/api/graph')
+    expect(apiURL('/api/graph')).toBe('api/graph')
+  })
+
+  it('leaves pathnames without a leading slash unchanged', () => {
+    expect(apiURL('data')).toBe('data')
+  })
+
+  it('prefixes with VITE_API_BASE_URL when configured', () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'http://localhost:8080')
+
+    expect(apiURL('/data')).toBe('http://localhost:8080/data')
+
+    vi.unstubAllEnvs()
   })
 })
 

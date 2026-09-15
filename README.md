@@ -89,25 +89,24 @@ open http://localhost:8080
 ```
 
 To expose it externally instead, create an `HTTPRoute` attached to a Gateway
-in your cluster, pointing at the `gateway-lens` Service.
+in your cluster, pointing at the `gateway-lens` Service. If you access Gateway Lens
+using a different path other than `/`, then you will need to specify that path in
+the `--base-path` parameter. See the [Configuration](#configuration) section for more details.
 
 ## Configuration
 
 Gateway Lens is configured via CLI flags, regardless of whether it's run
 locally or in Kubernetes:
 
-| Flag           | Description                                             | Default |
-| -------------- | -------------------------------------------------------- | ------- |
-| `--port`       | Port for the dashboard HTTP server                       | `8080`  |
-| `--log-level`  | Log level (`debug`, `info`, `error`, `panic`)             | `info`  |
-| `--namespaces` | Comma-separated list of namespaces to watch (default: all) | (all) |
-
-```sh
-./gateway-lens --port 9090 --log-level debug --namespaces default,gateway-system
-```
+| Flag            | Description                                                                                          | Default |
+| --------------- | ----------------------------------------------------------------------------------------------------- | ------- |
+| `--port`        | Port for the dashboard HTTP server                                                                    | `8080`  |
+| `--log-level`   | Log level (`debug`, `info`, `error`, `panic`)                                                          | `info`  |
+| `--base-path`   | URL path prefix the dashboard is served under, for deployments behind a reverse proxy or Gateway route mounted at a sub-path | (root path) |
+| `--namespaces`  | Comma-separated list of namespaces to watch (default: all)                                            | (all)   |
 
 When running via the Helm chart, these flags are exposed as the explicit
-`port`, `logLevel`, and `namespaces` values (see
+`port`, `logLevel`, `namespaces`, and `basePath` values (see
 [`charts/gateway-lens/README.md`](charts/gateway-lens/README.md#values)). For the plain manifests in
 [`deploy/`](deploy/), edit the container's `args`
 directly.

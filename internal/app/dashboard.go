@@ -108,7 +108,7 @@ type dashboardResourceRefView struct {
 }
 
 // newDashboardHandler builds the HTTP mux for the /data API and static UI assets.
-func newDashboardHandler(reader liveResourcesReader, logger logr.Logger) (http.Handler, error) {
+func newDashboardHandler(reader liveResourcesReader, logger logr.Logger, basePath string) (http.Handler, error) {
 	assets, err := dashboardui.FileSystem()
 	if err != nil {
 		return nil, fmt.Errorf("loading dashboard UI: %w", err)
@@ -119,9 +119,20 @@ func newDashboardHandler(reader liveResourcesReader, logger logr.Logger) (http.H
 		return nil, fmt.Errorf("reading dashboard index.html: %w", err)
 	}
 
-	fileServer := http.FileServer(http.FS(assets))
+	var fileServer http.Handler = http.FileServer(http.FS(assets))
+	if basePath != "" {
+		fileServer = http.StripPrefix(basePath, fileServer)
+	}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if !requireGET(w, r) {
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc(basePath+"/data", func(w http.ResponseWriter, r *http.Request) {
 		if !requireGET(w, r) {
 			return
 		}
@@ -142,19 +153,19 @@ func newDashboardHandler(reader liveResourcesReader, logger logr.Logger) (http.H
 			logger.Error(err, "Error encoding dashboard snapshot")
 		}
 	})
-	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(basePath+"/events", func(w http.ResponseWriter, r *http.Request) {
 		if !requireGET(w, r) {
 			return
 		}
 
 		serveSSE(w, r, reader, logger)
 	})
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(basePath+"/", func(w http.ResponseWriter, r *http.Request) {
 		if !requireGET(w, r) {
 			return
 		}
 
-		serveDashboardAsset(w, r, assets, indexHTML, fileServer)
+		serveDashboardAsset(w, r, assets, indexHTML, fileServer, basePath)
 	})
 
 	return mux, nil
@@ -178,13 +189,16 @@ func serveDashboardAsset(
 	assets fs.FS,
 	indexHTML []byte,
 	fileServer http.Handler,
+	basePath string,
 ) {
-	if r.URL.Path == "/" {
+	rootPath := basePath + "/"
+
+	if r.URL.Path == rootPath {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	}
 
-	if r.URL.Path != "/" {
-		path := r.URL.Path[1:]
+	if r.URL.Path != rootPath {
+		path := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, basePath), "/")
 		if _, err := fs.Stat(assets, path); err == nil {
 			fileServer.ServeHTTP(w, r)
 

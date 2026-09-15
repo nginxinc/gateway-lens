@@ -95,7 +95,7 @@ func TestRunRejectsInvalidLogLevel(t *testing.T) {
 
 	g := NewWithT(t)
 
-	err := run(t.Context(), defaultPort, "bogus", nil)
+	err := run(t.Context(), defaultPort, "bogus", "", nil)
 	g.Expect(err).To(MatchError(ContainSubstring(`invalid log level: "bogus"`)))
 }
 
@@ -115,7 +115,7 @@ func TestRunRejectsInvalidPort(t *testing.T) {
 
 			g := NewWithT(t)
 
-			err := run(t.Context(), testCase.port, defaultLogLevel, nil)
+			err := run(t.Context(), testCase.port, defaultLogLevel, "", nil)
 			g.Expect(err).To(MatchError(ContainSubstring("invalid port")))
 		})
 	}
@@ -139,8 +139,57 @@ func TestRunRejectsInvalidNamespace(t *testing.T) {
 
 			g := NewWithT(t)
 
-			err := run(t.Context(), defaultPort, defaultLogLevel, testCase.namespaces)
+			err := run(t.Context(), defaultPort, defaultLogLevel, "", testCase.namespaces)
 			g.Expect(err).To(MatchError(ContainSubstring("invalid namespace")))
+		})
+	}
+}
+
+func TestRunRejectsInvalidBasePath(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name     string
+		basePath string
+	}{
+		{name: "just a slash", basePath: "/"},
+		{name: "only slashes", basePath: "///"},
+		{name: "contains a space", basePath: "/gateway lens"},
+		{name: "full URL", basePath: "http://example.com/gateway-lens"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			err := run(t.Context(), defaultPort, defaultLogLevel, testCase.basePath, nil)
+			g.Expect(err).To(MatchError(ContainSubstring("invalid base path")))
+		})
+	}
+}
+
+func TestNormalizeBasePath(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name     string
+		raw      string
+		expected string
+	}{
+		{name: "empty", raw: "", expected: ""},
+		{name: "already normalized", raw: "/gateway-lens", expected: "/gateway-lens"},
+		{name: "missing leading slash", raw: "gateway-lens", expected: "/gateway-lens"},
+		{name: "trailing slash", raw: "/gateway-lens/", expected: "/gateway-lens"},
+		{name: "nested path", raw: "/foo/gateway-lens/", expected: "/foo/gateway-lens"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			result, err := normalizeBasePath(testCase.raw)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(result).To(Equal(testCase.expected))
 		})
 	}
 }

@@ -25,6 +25,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -52,6 +53,7 @@ var (
 	errInvalidLogLevel  = errors.New("invalid log level")
 	errInvalidPort      = errors.New("invalid port")
 	errInvalidNamespace = errors.New("invalid namespace")
+	errInvalidBasePath  = errors.New("invalid base path")
 )
 
 // containerMarkerFiles are files whose existence indicates a container environment.
@@ -91,6 +93,7 @@ func newRootCommand(out io.Writer, errOut io.Writer) *cobra.Command {
 		port       int
 		logLevel   string
 		namespaces []string
+		basePath   string
 	)
 
 	rootCmd := &cobra.Command{
@@ -99,7 +102,7 @@ func newRootCommand(out io.Writer, errOut io.Writer) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return run(cmd.Context(), port, logLevel, namespaces)
+			return run(cmd.Context(), port, logLevel, basePath, namespaces)
 		},
 	}
 
@@ -110,6 +113,11 @@ func newRootCommand(out io.Writer, errOut io.Writer) *cobra.Command {
 	rootCmd.Flags().StringVar(
 		&logLevel, "log-level", defaultLogLevel,
 		"log level (one of 'debug', 'info', 'error', 'panic')",
+	)
+	rootCmd.Flags().StringVar(
+		&basePath, "base-path", "",
+		"URL path prefix the dashboard is served under, for deployments "+
+			"behind a reverse proxy or Gateway route mounted at a sub-path (default: served at the root path)",
 	)
 	rootCmd.Flags().StringSliceVar(
 		&namespaces, "namespaces", nil,
@@ -133,7 +141,7 @@ var logLevels = map[string]zapcore.Level{ //nolint:gochecknoglobals // static lo
 }
 
 // run initializes the logger, creates the manager, and starts the process.
-func run(ctx context.Context, port int, logLevel string, namespaces []string) error {
+func run(ctx context.Context, port int, logLevel, basePath string, namespaces []string) error {
 	zapLevel, ok := logLevels[logLevel]
 	if !ok {
 		return fmt.Errorf("%w: %q (must be one of 'debug', 'info', 'error', 'panic')", errInvalidLogLevel, logLevel)
@@ -144,6 +152,11 @@ func run(ctx context.Context, port int, logLevel string, namespaces []string) er
 	}
 
 	if err := validateNamespaces(namespaces); err != nil {
+		return err
+	}
+
+	normalizedBasePath, err := normalizeBasePath(basePath)
+	if err != nil {
 		return err
 	}
 
@@ -159,7 +172,7 @@ func run(ctx context.Context, port int, logLevel string, namespaces []string) er
 
 	logger.Info("Starting gateway-lens", "version", version, "commit", commit)
 
-	mgr, err := manager.New(listenAddr, namespaces)
+	mgr, err := manager.New(listenAddr, normalizedBasePath, namespaces)
 	if err != nil {
 		return fmt.Errorf("creating manager: %w", err)
 	}
@@ -180,6 +193,42 @@ func validateNamespaces(namespaces []string) error {
 	}
 
 	return nil
+}
+
+// normalizeBasePath validates and normalizes a --base-path flag value into a
+// form with a leading slash and no trailing slash, or the empty string if no base path was configured.
+func normalizeBasePath(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+
+	if strings.ContainsAny(trimmed, " \t\r\n?#") {
+		return "", fmt.Errorf("%w: %q (must be a plain URL path, e.g. /gateway-lens)", errInvalidBasePath, raw)
+	}
+
+	// Reject anything that looks like a full URL (has a scheme and/or host)
+	// before adding a leading slash, since doing so afterward would hide an
+	// embedded scheme/host inside what url.Parse treats as an opaque path.
+	if parsed, err := url.Parse(trimmed); err != nil || parsed.Scheme != "" || parsed.Host != "" {
+		return "", fmt.Errorf("%w: %q (must be a URL path, e.g. /gateway-lens)", errInvalidBasePath, raw)
+	}
+
+	if !strings.HasPrefix(trimmed, "/") {
+		trimmed = "/" + trimmed
+	}
+
+	trimmed = strings.TrimRight(trimmed, "/")
+	if trimmed == "" {
+		return "", fmt.Errorf(`%w: %q (must not be just "/")`, errInvalidBasePath, raw)
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Path != trimmed {
+		return "", fmt.Errorf("%w: %q (must be a URL path, e.g. /gateway-lens)", errInvalidBasePath, raw)
+	}
+
+	return trimmed, nil
 }
 
 // newVersionCommand creates the "version" subcommand.

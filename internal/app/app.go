@@ -39,6 +39,8 @@ type HTTPServerRunnable struct {
 	logger logr.Logger
 	// listenAddress is the TCP address the server binds to.
 	listenAddress string
+	// basePath is the URL path prefix the dashboard is served under, or "" for the root path.
+	basePath string
 	// boundAddress stores the actual address once the listener is active.
 	boundAddress atomic.Pointer[string]
 }
@@ -47,12 +49,14 @@ type HTTPServerRunnable struct {
 func NewHTTPServerRunnable(
 	liveResources liveResourcesReader,
 	listenAddress string,
+	basePath string,
 	logger logr.Logger,
 ) *HTTPServerRunnable {
 	return &HTTPServerRunnable{
 		reader:        liveResources,
 		logger:        logger,
 		listenAddress: listenAddress,
+		basePath:      basePath,
 	}
 }
 
@@ -78,7 +82,7 @@ func (r *HTTPServerRunnable) Start(ctx context.Context) error {
 
 // serve creates the handler, opens the listener, and runs the HTTP server.
 func (r *HTTPServerRunnable) serve(ctx context.Context) error {
-	handler, err := newDashboardHandler(r.reader, r.logger)
+	handler, err := newDashboardHandler(r.reader, r.logger, r.basePath)
 	if err != nil {
 		return err
 	}
