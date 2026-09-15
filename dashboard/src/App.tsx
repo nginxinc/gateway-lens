@@ -16,6 +16,7 @@ limitations under the License.
 
 import {
   Background,
+  ControlButton,
   Controls,
   Handle,
   ReactFlow,
@@ -24,6 +25,7 @@ import {
   type Node,
   type NodeMouseHandler,
   type NodeProps,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import {
   memo,
@@ -33,6 +35,7 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import '@xyflow/react/dist/style.css'
@@ -59,9 +62,11 @@ import {
   resolveSelectedKey,
   resourceKey,
   visibleGraphSnapshot,
+  type GraphOrientation,
   type GroupNodeData,
   type NamespaceGroupNodeData,
 } from './graph'
+import {loadStoredGraphOrientation, storeGraphOrientation} from './layout'
 import {buildSummaryCards} from './summary'
 import {
   hasAttributes,
@@ -79,8 +84,12 @@ type ResourceNodeData = {
   kind: string
   sourceBottomHandleCount: number
   sourceTopHandleCount: number
+  sourceLeftHandleCount: number
+  sourceRightHandleCount: number
   targetBottomHandleCount: number
   targetTopHandleCount: number
+  targetLeftHandleCount: number
+  targetRightHandleCount: number
 }
 
 const nodeTypes = {
@@ -89,6 +98,8 @@ const nodeTypes = {
       <>
         {renderNodeHandles('target', Position.Top, data.targetTopHandleCount)}
         {renderNodeHandles('source', Position.Top, data.sourceTopHandleCount)}
+        {renderNodeHandles('target', Position.Left, data.targetLeftHandleCount)}
+        {renderNodeHandles('source', Position.Left, data.sourceLeftHandleCount)}
         <article className="flow-node-card">
           {data.hasNegativeCondition ? <span className="flow-node-alert">! Error Status</span> : null}
           <span className="flow-node-kind">{data.kind}</span>
@@ -97,6 +108,8 @@ const nodeTypes = {
         </article>
         {renderNodeHandles('target', Position.Bottom, data.targetBottomHandleCount)}
         {renderNodeHandles('source', Position.Bottom, data.sourceBottomHandleCount)}
+        {renderNodeHandles('target', Position.Right, data.targetRightHandleCount)}
+        {renderNodeHandles('source', Position.Right, data.sourceRightHandleCount)}
       </>
     )
   }),
@@ -105,6 +118,8 @@ const nodeTypes = {
       <>
         {renderNodeHandles('target', Position.Top, data.targetTopHandleCount)}
         {renderNodeHandles('source', Position.Top, data.sourceTopHandleCount)}
+        {renderNodeHandles('target', Position.Left, data.targetLeftHandleCount)}
+        {renderNodeHandles('source', Position.Left, data.sourceLeftHandleCount)}
         <article className="flow-node-card flow-node-group">
           <span className="flow-node-kind">{data.kind}</span>
           <strong className="flow-node-group-count">{data.count}</strong>
@@ -112,6 +127,8 @@ const nodeTypes = {
         </article>
         {renderNodeHandles('target', Position.Bottom, data.targetBottomHandleCount)}
         {renderNodeHandles('source', Position.Bottom, data.sourceBottomHandleCount)}
+        {renderNodeHandles('target', Position.Right, data.targetRightHandleCount)}
+        {renderNodeHandles('source', Position.Right, data.sourceRightHandleCount)}
       </>
     )
   }),
@@ -139,6 +156,13 @@ export function App() {
   const [colorSchemeMode, setColorSchemeMode] = useState<ColorSchemeMode>(() => loadStoredColorSchemeMode())
   const [systemColorScheme, setSystemColorScheme] = useState(() => getSystemColorScheme())
   const colorScheme = colorSchemeMode === 'system' ? systemColorScheme : colorSchemeMode
+
+  // Graph layout orientation: 'TB' (top-to-bottom, default) or 'LR'
+  // (left-to-right), persisted across sessions.
+  const [orientation, setOrientation] = useState<GraphOrientation>(() => loadStoredGraphOrientation())
+
+  const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
+  const lastFitOrientationRef = useRef(orientation)
 
   // Filter state
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set())
@@ -215,14 +239,26 @@ export function App() {
     if (!graphPayload) return
 
     const nextSelectedKey = resolveNextSelectedKey(graphPayload)
-    const graph = buildGraph(graphPayload, nextSelectedKey, colorScheme)
+    const graph = buildGraph(graphPayload, nextSelectedKey, colorScheme, orientation)
+    const orientationChanged = lastFitOrientationRef.current !== orientation
+    lastFitOrientationRef.current = orientation
 
     startTransition(() => {
       setSelectedKey(nextSelectedKey)
       setFlowNodes(graph.nodes)
       setFlowEdges(graph.edges)
     })
-  }, [graphPayload, selectedKey, colorScheme])
+
+    if (orientationChanged) {
+      // Wait a couple of frames so the new layout has actually been applied
+      // to the React Flow store before measuring bounds for fitView.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          void reactFlowInstanceRef.current?.fitView({duration: 300})
+        })
+      })
+    }
+  }, [graphPayload, selectedKey, colorScheme, orientation])
 
   useEffect(() => {
     applyColorScheme(colorScheme)
@@ -238,9 +274,9 @@ export function App() {
     })
   }, [])
 
-  const toggleColorScheme = useCallback(() => {
-    setColorSchemeMode(colorScheme === 'dark' ? 'light' : 'dark')
-  }, [colorScheme])
+  useEffect(() => {
+    storeGraphOrientation(orientation)
+  }, [orientation])
 
   const refreshSnapshot = useEffectEvent(async () => {
     try {
@@ -382,15 +418,28 @@ export function App() {
           </p>
         </div>
 
-        <button
-          aria-label={colorScheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          className="theme-toggle"
-          onClick={toggleColorScheme}
-          title={colorScheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          type="button"
-        >
-          {colorScheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-        </button>
+        <div className="hero-controls">
+          <div aria-label="Color theme" className="theme-toggle-group" role="group">
+            <button
+              aria-pressed={colorScheme === 'light'}
+              className="theme-toggle-option"
+              onClick={() => setColorSchemeMode('light')}
+              title="Light theme"
+              type="button"
+            >
+              ☀️
+            </button>
+            <button
+              aria-pressed={colorScheme === 'dark'}
+              className="theme-toggle-option"
+              onClick={() => setColorSchemeMode('dark')}
+              title="Dark theme"
+              type="button"
+            >
+              🌙
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="summary-grid" aria-label="Gateway API resource counts">
@@ -506,13 +555,35 @@ export function App() {
               nodesConnectable={false}
               nodesDraggable={false}
               nodeTypes={nodeTypes}
+              onInit={(instance) => {
+                reactFlowInstanceRef.current = instance
+              }}
               onNodeClick={handleNodeClick}
               onPaneClick={handlePaneClick}
               panOnScroll
               proOptions={{hideAttribution: true}}
             >
               <Background color={colorScheme === 'dark' ? 'rgba(200, 220, 210, 0.1)' : 'rgba(35, 63, 53, 0.12)'} gap={20} />
-              <Controls showInteractive={false} />
+              <Controls showInteractive={false}>
+                <ControlButton
+                  aria-label="Left-to-right layout"
+                  aria-pressed={orientation === 'LR'}
+                  className="orientation-switch-option"
+                  onClick={() => setOrientation('LR')}
+                  title="Left-to-right layout"
+                >
+                  <RightArrowIcon />
+                </ControlButton>
+                <ControlButton
+                  aria-label="Top-to-bottom layout"
+                  aria-pressed={orientation === 'TB'}
+                  className="orientation-switch-option"
+                  onClick={() => setOrientation('TB')}
+                  title="Top-to-bottom layout"
+                >
+                  <DownArrowIcon />
+                </ControlButton>
+              </Controls>
             </ReactFlow>
           </div>
 
@@ -583,6 +654,22 @@ export function App() {
   )
 }
 
+function RightArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 10v4h12v4l8-6-8-6v4z" />
+    </svg>
+  )
+}
+
+function DownArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 2h4v12h4l-6 8-6-8h4z" />
+    </svg>
+  )
+}
+
 function renderNodeHandles(
   type: 'source' | 'target',
   position: Position,
@@ -592,20 +679,34 @@ function renderNodeHandles(
     return null
   }
 
-  return Array.from({length: handleCount}, (_, index) => {
-    const side = position === Position.Top ? 'top' : 'bottom'
+  const side = handleSideName(position)
+  const offsetProperty = position === Position.Top || position === Position.Bottom ? 'left' : 'top'
 
+  return Array.from({length: handleCount}, (_, index) => {
     return (
       <Handle
         className="resource-handle"
         id={`${type}-${side}-${index}`}
         key={`${type}-${side}-${index}`}
         position={position}
-        style={{left: `${handleOffsetPercent(index, handleCount)}%`}}
+        style={{[offsetProperty]: `${handleOffsetPercent(index, handleCount)}%`}}
         type={type}
       />
     )
   })
+}
+
+function handleSideName(position: Position) {
+  switch (position) {
+    case Position.Top:
+      return 'top'
+    case Position.Bottom:
+      return 'bottom'
+    case Position.Left:
+      return 'left'
+    case Position.Right:
+      return 'right'
+  }
 }
 
 function handleOffsetPercent(handleIndex: number, handleCount: number) {
