@@ -74,6 +74,9 @@ Container args built from the explicit values fields, plus any extraArgs appende
 {{- if .Values.namespaces }}
 - --namespaces={{ join "," .Values.namespaces }}
 {{- end }}
+{{- if .Values.basePath }}
+- --base-path={{ .Values.basePath }}
+{{- end }}
 {{- range .Values.extraArgs }}
 - {{ . | quote }}
 {{- end }}

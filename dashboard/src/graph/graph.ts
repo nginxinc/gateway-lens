@@ -831,5 +831,9 @@ export function buildSelectedResourceYAML(node: DashboardNode) {
 
 export function apiURL(pathname: string) {
   const apiBaseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
-  return `${apiBaseURL}${pathname}`
+  if (apiBaseURL) {
+    return `${apiBaseURL}${pathname}`
+  }
+
+  return pathname.replace(/^\/+/, '')
 }

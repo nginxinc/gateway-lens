@@ -73,6 +73,7 @@ rbac:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity rules for the Pod. |
+| basePath | string | `""` | URL path prefix the dashboard is served under, for deployments behind a reverse proxy or Gateway route mounted at a sub-path. Passed to the container as `--base-path`. Leave empty to serve at the root path. |
 | extraArgs | list | `[]` | Extra CLI args passed to the container. |
 | image.pullPolicy | string | `"IfNotPresent"` | The image pull policy for the gateway-lens container. |
 | image.repository | string | `"ghcr.io/nginxinc/gateway-lens"` | The gateway-lens container image repository. |

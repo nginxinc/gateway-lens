@@ -47,11 +47,13 @@ type Manager struct {
 	logger logr.Logger
 	// listenAddress is the TCP address for the dashboard HTTP server.
 	listenAddress string
+	// basePath is the URL path prefix the dashboard is served under, or "" for the root path.
+	basePath string
 }
 
 // New creates a manager configured for Gateway API cache/watch use,
 // registers resource controllers, and wires the HTTP server runnable.
-func New(listenAddress string, namespaces []string) (*Manager, error) {
+func New(listenAddress, basePath string, namespaces []string) (*Manager, error) {
 	logger := ctlrlog.Log.WithName("manager")
 
 	restConfig, err := ctlrconfig.GetConfig()
@@ -83,7 +85,7 @@ func New(listenAddress string, namespaces []string) (*Manager, error) {
 		return nil, fmt.Errorf("creating controller-runtime manager: %w", err)
 	}
 
-	m := &Manager{manager: mgr, logger: logger, listenAddress: listenAddress}
+	m := &Manager{manager: mgr, logger: logger, listenAddress: listenAddress, basePath: basePath}
 
 	if err := m.registerRunnables(); err != nil {
 		return nil, err
@@ -129,7 +131,7 @@ func (m *Manager) registerRunnables() error {
 		return fmt.Errorf("registering resources controllers: %w", err)
 	}
 
-	serverRunnable := app.NewHTTPServerRunnable(res, m.listenAddress, m.logger.WithName("httpServer"))
+	serverRunnable := app.NewHTTPServerRunnable(res, m.listenAddress, m.basePath, m.logger.WithName("httpServer"))
 
 	runnables := []ctlrmanager.Runnable{
 		res,

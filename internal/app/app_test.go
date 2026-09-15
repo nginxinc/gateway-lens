@@ -112,7 +112,7 @@ func TestHTTPServerRunnableStartsDashboard(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), serveTestTimeout)
 	defer cancel()
 
-	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", logr.Discard())
+	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", "", logr.Discard())
 
 	errCh := make(chan error, 1)
 
@@ -121,8 +121,8 @@ func TestHTTPServerRunnableStartsDashboard(t *testing.T) {
 	}()
 
 	dashboardAddr := waitForDashboardReady(g, runnable)
-	assertDashboardDataEndpoint(ctx, g, dashboardAddr)
-	assertDashboardPageEndpoint(ctx, t, g, dashboardAddr)
+	assertDashboardDataEndpoint(ctx, g, dashboardAddr, "")
+	assertDashboardPageEndpoint(ctx, t, g, dashboardAddr, "")
 
 	cancel()
 	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
@@ -140,8 +140,8 @@ func waitForDashboardReady(g Gomega, runnable *app.HTTPServerRunnable) string {
 	return "http://" + addr
 }
 
-func assertDashboardDataEndpoint(ctx context.Context, g Gomega, dashboardAddr string) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+"/data", nil)
+func assertDashboardDataEndpoint(ctx context.Context, g Gomega, dashboardAddr, basePath string) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+basePath+"/data", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	response, err := http.DefaultClient.Do(request)
@@ -155,10 +155,10 @@ func assertDashboardDataEndpoint(ctx context.Context, g Gomega, dashboardAddr st
 	g.Expect(string(body)).To(ContainSubstring("HTTPRoute"))
 }
 
-func assertDashboardPageEndpoint(ctx context.Context, t *testing.T, g Gomega, dashboardAddr string) {
+func assertDashboardPageEndpoint(ctx context.Context, t *testing.T, g Gomega, dashboardAddr, basePath string) {
 	t.Helper()
 
-	pageRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr, nil)
+	pageRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+basePath+"/", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	pageResponse, err := http.DefaultClient.Do(pageRequest)
@@ -173,6 +173,95 @@ func assertDashboardPageEndpoint(ctx context.Context, t *testing.T, g Gomega, da
 	g.Expect(string(pageBody)).To(ContainSubstring("Gateway Lens"))
 }
 
+func TestHTTPServerRunnableServesUnderBasePath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	ctx, cancel := context.WithTimeout(t.Context(), serveTestTimeout)
+	defer cancel()
+
+	const basePath = "/gateway-lens"
+
+	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", basePath, logr.Discard())
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		errCh <- runnable.Start(ctx)
+	}()
+
+	dashboardAddr := waitForDashboardReady(g, runnable)
+	assertDashboardDataEndpoint(ctx, g, dashboardAddr, basePath)
+	assertDashboardPageEndpoint(ctx, t, g, dashboardAddr, basePath)
+
+	// A request to the bare base path (no trailing slash) should be
+	// redirected to the base path with a trailing slash, so that relative
+	// asset/API URLs in the served page resolve correctly.
+	redirectReq, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+basePath, nil)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	redirectResp, err := noRedirectClient.Do(redirectReq)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer func() { _ = redirectResp.Body.Close() }()
+
+	g.Expect(redirectResp.StatusCode).To(Equal(http.StatusTemporaryRedirect))
+	g.Expect(redirectResp.Header.Get("Location")).To(Equal(basePath + "/"))
+
+	// Requests outside the base path should not be handled by the dashboard.
+	unmatchedReq, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+"/data", nil)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	unmatchedResp, err := http.DefaultClient.Do(unmatchedReq)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer func() { _ = unmatchedResp.Body.Close() }()
+
+	g.Expect(unmatchedResp.StatusCode).To(Equal(http.StatusNotFound))
+
+	cancel()
+	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
+}
+
+func TestHealthzEndpointIgnoresBasePath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	ctx, cancel := context.WithTimeout(t.Context(), serveTestTimeout)
+	defer cancel()
+
+	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", "/gateway-lens", logr.Discard())
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		errCh <- runnable.Start(ctx)
+	}()
+
+	dashboardAddr := waitForDashboardReady(g, runnable)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+"/healthz", nil)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	resp, err := http.DefaultClient.Do(req)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer func() { _ = resp.Body.Close() }()
+
+	g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
+
+	cancel()
+	g.Eventually(errCh, shutdownWaitTimeout).Should(Receive(BeNil()))
+}
+
 func TestSSEEndpointStreamsChangedEvents(t *testing.T) {
 	t.Parallel()
 
@@ -182,7 +271,7 @@ func TestSSEEndpointStreamsChangedEvents(t *testing.T) {
 	defer cancel()
 
 	reader := newTestResourcesReader()
-	runnable := app.NewHTTPServerRunnable(reader, "127.0.0.1:0", logr.Discard())
+	runnable := app.NewHTTPServerRunnable(reader, "127.0.0.1:0", "", logr.Discard())
 
 	errCh := make(chan error, 1)
 
@@ -240,7 +329,7 @@ func TestSSEEndpointRejectsBrowserNavigation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), serveTestTimeout)
 	defer cancel()
 
-	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", logr.Discard())
+	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", "", logr.Discard())
 
 	errCh := make(chan error, 1)
 
@@ -274,7 +363,7 @@ func TestEndpointsRejectNonGETMethods(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), serveTestTimeout)
 	defer cancel()
 
-	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", logr.Discard())
+	runnable := app.NewHTTPServerRunnable(newTestResourcesReader(), "127.0.0.1:0", "", logr.Discard())
 
 	errCh := make(chan error, 1)
 
@@ -284,7 +373,7 @@ func TestEndpointsRejectNonGETMethods(t *testing.T) {
 
 	dashboardAddr := waitForDashboardReady(g, runnable)
 
-	endpoints := []string{"/data", "/events", "/"}
+	endpoints := []string{"/data", "/events", "/", "/healthz"}
 
 	for _, endpoint := range endpoints {
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, dashboardAddr+endpoint, nil)

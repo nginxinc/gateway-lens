@@ -7,6 +7,12 @@
       "title": "affinity",
       "type": "object"
     },
+    "basePath": {
+      "default": "",
+      "description": "URL path prefix the dashboard is served under, for\ndeployments behind a reverse proxy or Gateway route mounted at a sub-path.\nPassed to the container as `--base-path`. Leave empty to serve at the root path.",
+      "title": "basePath",
+      "type": "string"
+    },
     "extraArgs": {
       "description": "Extra CLI args passed to the container.",
       "items": {
