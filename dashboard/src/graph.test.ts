@@ -702,6 +702,93 @@ describe('buildGraph', () => {
     expect(lightBoxShadow).toContain('37, 99, 235')
     expect(darkBoxShadow).toContain('37, 99, 235')
   })
+
+  it('defaults to top-to-bottom orientation when none is provided', () => {
+    const snapshot = makePayload([
+      makeNode('Gateway', 'gw-1', 'default'),
+      makeNode('HTTPRoute', 'route-1', 'default'),
+    ])
+    expect(buildGraph(snapshot, '', 'light')).toEqual(buildGraph(snapshot, '', 'light', 'TB'))
+  })
+
+  it('lays out nodes left-to-right when orientation is LR', () => {
+    const gw = makeNode('Gateway', 'gw-1', 'default')
+    const route = makeNode('HTTPRoute', 'route-1', 'default')
+    const edge = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-1', 'listener', 'default')
+    const snapshot = makePayload([gw, route], [edge])
+
+    const tbGraph = buildGraph(snapshot, '', 'light', 'TB')
+    const lrGraph = buildGraph(snapshot, '', 'light', 'LR')
+
+    const tbGw = tbGraph.nodes.find((n) => n.id === resourceKey(gw.ref))!
+    const tbRoute = tbGraph.nodes.find((n) => n.id === resourceKey(route.ref))!
+    const lrGw = lrGraph.nodes.find((n) => n.id === resourceKey(gw.ref))!
+    const lrRoute = lrGraph.nodes.find((n) => n.id === resourceKey(route.ref))!
+
+    // In TB layout, ranked nodes are separated primarily along the y-axis.
+    expect(tbGw.position.y).not.toEqual(tbRoute.position.y)
+    // In LR layout, ranked nodes are separated primarily along the x-axis.
+    expect(lrGw.position.x).not.toEqual(lrRoute.position.x)
+  })
+
+  it('assigns left/right handle sides to edges in LR orientation', () => {
+    const gw = makeNode('Gateway', 'gw-1', 'default')
+    const route = makeNode('HTTPRoute', 'route-1', 'default')
+    const edge = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-1', 'listener', 'default')
+    const snapshot = makePayload([gw, route], [edge])
+
+    const graph = buildGraph(snapshot, '', 'light', 'LR')
+    const flowEdge = graph.edges[0]
+
+    expect(String(flowEdge.sourceHandle)).toContain('right')
+    expect(String(flowEdge.targetHandle)).toContain('left')
+  })
+
+  it('populates left/right handle counts on resource node data in LR orientation', () => {
+    const gw = makeNode('Gateway', 'gw-1', 'default')
+    const route = makeNode('HTTPRoute', 'route-1', 'default')
+    const edge = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-1', 'listener', 'default')
+    const snapshot = makePayload([gw, route], [edge])
+
+    const graph = buildGraph(snapshot, '', 'light', 'LR')
+    const gwNode = graph.nodes.find((n) => n.id === resourceKey(gw.ref))!
+    const routeNode = graph.nodes.find((n) => n.id === resourceKey(route.ref))!
+
+    expect(gwNode.data.sourceRightHandleCount).toBe(1)
+    expect(gwNode.data.sourceTopHandleCount).toBe(0)
+    expect(gwNode.data.sourceBottomHandleCount).toBe(0)
+    expect(routeNode.data.targetLeftHandleCount).toBe(1)
+    expect(routeNode.data.targetTopHandleCount).toBe(0)
+    expect(routeNode.data.targetBottomHandleCount).toBe(0)
+  })
+
+  it('keeps namespace grouping correct under LR orientation', () => {
+    const gw = makeNode('Gateway', 'gw-1', 'ns-a')
+    const route = makeNode('HTTPRoute', 'route-1', 'ns-b')
+    const edge: DashboardEdge = {
+      from: gw.ref,
+      to: route.ref,
+      type: 'relationship',
+      detail: 'parentRef',
+    }
+    const snapshot = makePayload([gw, route], [edge])
+    const graph = buildGraph(snapshot, '', 'light', 'LR')
+
+    const nsGroupNodes = graph.nodes.filter((n) => n.type === 'namespaceGroup')
+    expect(nsGroupNodes).toHaveLength(2)
+
+    const childNodes = graph.nodes.filter((n) => n.type === 'resource')
+    expect(childNodes).toHaveLength(2)
+    for (const child of childNodes) {
+      expect(child.parentId).toBeDefined()
+      expect(isNamespaceGroupNodeId(child.parentId!)).toBe(true)
+      // Child position must stay within its namespace group's bounds.
+      const parent = nsGroupNodes.find((n) => n.id === child.parentId)!
+      expect(child.position.x).toBeGreaterThanOrEqual(0)
+      expect(child.position.y).toBeGreaterThanOrEqual(0)
+      expect(parent.style?.width).toBeTypeOf('number')
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------

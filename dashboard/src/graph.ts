@@ -223,23 +223,58 @@ function refFromKey(key: string): DashboardResourceRef {
   return {group, kind, namespace: namespace || undefined, name}
 }
 
+// GraphOrientation selects which direction dagre lays the topology out in.
+// 'TB' (top-to-bottom, the original/default) reads request flow downward;
+// 'LR' (left-to-right) reads it left-to-right.
+export type GraphOrientation = 'TB' | 'LR'
+
+export const defaultGraphOrientation: GraphOrientation = 'TB'
+
+type HandleSide = 'top' | 'bottom' | 'left' | 'right'
+
 export type GroupNodeData = {
   kind: string
   count: number
   sourceBottomHandleCount: number
   sourceTopHandleCount: number
+  sourceLeftHandleCount: number
+  sourceRightHandleCount: number
   targetBottomHandleCount: number
   targetTopHandleCount: number
+  targetLeftHandleCount: number
+  targetRightHandleCount: number
 }
 
 export type NamespaceGroupNodeData = {
   namespace: string
 }
 
+// rankAxis is the coordinate axis dagre ranks nodes along for a given
+// orientation ('y' for top-to-bottom, 'x' for left-to-right). crossAxis is
+// the perpendicular axis used to order handles spatially within a rank.
+function rankAxis(orientation: GraphOrientation): 'x' | 'y' {
+  return orientation === 'LR' ? 'x' : 'y'
+}
+
+function crossAxis(orientation: GraphOrientation): 'x' | 'y' {
+  return orientation === 'LR' ? 'y' : 'x'
+}
+
+// forwardSide/backwardSide are the node edges edges exit/enter from when
+// travelling in the "normal" (forward) vs. reversed direction of the rank axis.
+function forwardSide(orientation: GraphOrientation): HandleSide {
+  return orientation === 'LR' ? 'right' : 'bottom'
+}
+
+function backwardSide(orientation: GraphOrientation): HandleSide {
+  return orientation === 'LR' ? 'left' : 'top'
+}
+
 export function buildGraph(
   snapshot: DashboardPayload,
   selectedResourceKey: string,
   colorScheme: ColorScheme = 'light',
+  orientation: GraphOrientation = defaultGraphOrientation,
 ) {
   const graph = new dagre.graphlib.Graph()
   graph.setDefaultEdgeLabel(() => ({}))
@@ -248,7 +283,7 @@ export function buildGraph(
     marginy: 40,
     edgesep: 50,
     nodesep: 100,
-    rankdir: 'TB',
+    rankdir: orientation,
     ranksep: 180,
   })
 
@@ -269,41 +304,59 @@ export function buildGraph(
 
   dagre.layout(graph)
 
-  // Pre-compute edge metadata and sort by opposite endpoint X-position so that
-  // handle indices are assigned left-to-right, reducing edge crossings.
+  const rankKey = rankAxis(orientation)
+  const crossKey = crossAxis(orientation)
+  const forward = forwardSide(orientation)
+  const backward = backwardSide(orientation)
+
+  // Pre-compute edge metadata and sort by opposite endpoint's cross-axis
+  // position so that handle indices are assigned spatially, reducing edge
+  // crossings (X-position for TB layouts, Y-position for LR layouts).
   const edgeMeta = snapshot.edges.map((edge, index) => {
     const visualEndpoints = visualEdgeEndpoints(edge)
     const sourcePosition = graph.node(visualEndpoints.source)
     const targetPosition = graph.node(visualEndpoints.target)
-    const isUpwardEdge = targetPosition.y < sourcePosition.y
-    const sourceSide = isUpwardEdge ? 'top' : 'bottom'
-    const targetSide = isUpwardEdge ? 'bottom' : 'top'
+    const isBackwardEdge = targetPosition[rankKey] < sourcePosition[rankKey]
+    const sourceSide = isBackwardEdge ? backward : forward
+    const targetSide = isBackwardEdge ? forward : backward
 
     return {edge, index, visualEndpoints, sourcePosition, targetPosition, sourceSide, targetSide}
   })
 
-  // Sort by the X-position of the opposite endpoint so handles are ordered spatially.
-  const sortedForSourceHandles = [...edgeMeta].sort((a, b) => a.targetPosition.x - b.targetPosition.x)
-  const sortedForTargetHandles = [...edgeMeta].sort((a, b) => a.sourcePosition.x - b.sourcePosition.x)
+  // Sort by the cross-axis position of the opposite endpoint so handles are ordered spatially.
+  const sortedForSourceHandles = [...edgeMeta].sort(
+    (a, b) => a.targetPosition[crossKey] - b.targetPosition[crossKey],
+  )
+  const sortedForTargetHandles = [...edgeMeta].sort(
+    (a, b) => a.sourcePosition[crossKey] - b.sourcePosition[crossKey],
+  )
 
-  const sourceTopHandleCount = new Map<string, number>()
-  const sourceBottomHandleCount = new Map<string, number>()
-  const targetTopHandleCount = new Map<string, number>()
-  const targetBottomHandleCount = new Map<string, number>()
+  const sourceHandleCounts: Record<HandleSide, Map<string, number>> = {
+    top: new Map(),
+    bottom: new Map(),
+    left: new Map(),
+    right: new Map(),
+  }
+  const targetHandleCounts: Record<HandleSide, Map<string, number>> = {
+    top: new Map(),
+    bottom: new Map(),
+    left: new Map(),
+    right: new Map(),
+  }
 
-  // Assign source handles in order of target X-position.
+  // Assign source handles in order of the opposite endpoint's cross-axis position.
   const sourceHandleMap = new Map<number, string>()
   for (const meta of sortedForSourceHandles) {
-    const countMap = meta.sourceSide === 'top' ? sourceTopHandleCount : sourceBottomHandleCount
+    const countMap = sourceHandleCounts[meta.sourceSide]
     const handleIndex = countMap.get(meta.visualEndpoints.source) ?? 0
     countMap.set(meta.visualEndpoints.source, handleIndex + 1)
     sourceHandleMap.set(meta.index, `source-${meta.sourceSide}-${handleIndex}`)
   }
 
-  // Assign target handles in order of source X-position.
+  // Assign target handles in order of the opposite endpoint's cross-axis position.
   const targetHandleMap = new Map<number, string>()
   for (const meta of sortedForTargetHandles) {
-    const countMap = meta.targetSide === 'top' ? targetTopHandleCount : targetBottomHandleCount
+    const countMap = targetHandleCounts[meta.targetSide]
     const handleIndex = countMap.get(meta.visualEndpoints.target) ?? 0
     countMap.set(meta.visualEndpoints.target, handleIndex + 1)
     targetHandleMap.set(meta.index, `target-${meta.targetSide}-${handleIndex}`)
@@ -355,10 +408,14 @@ export function buildGraph(
         data: {
           kind: node.ref.kind,
           count: groupCount,
-          sourceBottomHandleCount: sourceBottomHandleCount.get(key) ?? 0,
-          sourceTopHandleCount: sourceTopHandleCount.get(key) ?? 0,
-          targetBottomHandleCount: targetBottomHandleCount.get(key) ?? 0,
-          targetTopHandleCount: targetTopHandleCount.get(key) ?? 0,
+          sourceBottomHandleCount: sourceHandleCounts.bottom.get(key) ?? 0,
+          sourceTopHandleCount: sourceHandleCounts.top.get(key) ?? 0,
+          sourceLeftHandleCount: sourceHandleCounts.left.get(key) ?? 0,
+          sourceRightHandleCount: sourceHandleCounts.right.get(key) ?? 0,
+          targetBottomHandleCount: targetHandleCounts.bottom.get(key) ?? 0,
+          targetTopHandleCount: targetHandleCounts.top.get(key) ?? 0,
+          targetLeftHandleCount: targetHandleCounts.left.get(key) ?? 0,
+          targetRightHandleCount: targetHandleCounts.right.get(key) ?? 0,
         } satisfies GroupNodeData,
         draggable: false,
         id: key,
@@ -406,10 +463,14 @@ export function buildGraph(
         detailText: referenceGrantNodeSummary(node),
         hasNegativeCondition,
         kind: node.ref.kind,
-        sourceBottomHandleCount: sourceBottomHandleCount.get(key) ?? 0,
-        sourceTopHandleCount: sourceTopHandleCount.get(key) ?? 0,
-        targetBottomHandleCount: targetBottomHandleCount.get(key) ?? 0,
-        targetTopHandleCount: targetTopHandleCount.get(key) ?? 0,
+        sourceBottomHandleCount: sourceHandleCounts.bottom.get(key) ?? 0,
+        sourceTopHandleCount: sourceHandleCounts.top.get(key) ?? 0,
+        sourceLeftHandleCount: sourceHandleCounts.left.get(key) ?? 0,
+        sourceRightHandleCount: sourceHandleCounts.right.get(key) ?? 0,
+        targetBottomHandleCount: targetHandleCounts.bottom.get(key) ?? 0,
+        targetTopHandleCount: targetHandleCounts.top.get(key) ?? 0,
+        targetLeftHandleCount: targetHandleCounts.left.get(key) ?? 0,
+        targetRightHandleCount: targetHandleCounts.right.get(key) ?? 0,
       },
       draggable: false,
       id: key,
