@@ -17,6 +17,7 @@ limitations under the License.
 import {MarkerType, type Edge, type Node} from '@xyflow/react'
 import dagre from 'dagre'
 
+import type {ColorScheme} from './colorScheme'
 import type {
   DashboardEdge,
   DashboardNode,
@@ -32,6 +33,31 @@ export const referenceGrantSummaryAttribute = 'ReferenceGrant Summary'
 
 const selectionRingColor = 'rgba(37, 99, 235, 0.9)'
 const selectionGlowColor = 'rgba(37, 99, 235, 0.55)'
+
+const errorGlowColors = {
+  light: {
+    border: 'rgba(171, 32, 21, 1)',
+    borderDim: 'rgba(171, 32, 21, 0.72)',
+    ringSelected: 'rgba(193, 49, 38, 0.2)',
+    ringUnselected: 'rgba(193, 49, 38, 0.16)',
+  },
+  dark: {
+    border: 'rgba(255, 120, 105, 1)',
+    borderDim: 'rgba(255, 120, 105, 0.75)',
+    ringSelected: 'rgba(255, 120, 105, 0.28)',
+    ringUnselected: 'rgba(255, 120, 105, 0.22)',
+  },
+} satisfies Record<ColorScheme, {border: string; borderDim: string; ringSelected: string; ringUnselected: string}>
+
+const shadowColors = {
+  light: {ambient: 'rgba(31, 43, 39, 0.1)', elevated: 'rgba(31, 43, 39, 0.18)'},
+  dark: {ambient: 'rgba(0, 0, 0, 0.45)', elevated: 'rgba(0, 0, 0, 0.6)'},
+} satisfies Record<ColorScheme, {ambient: string; elevated: string}>
+
+const edgeLabelColors = {
+  light: {background: 'rgba(255, 250, 242, 0.92)', text: '#5f5b52'},
+  dark: {background: 'rgba(30, 32, 30, 0.92)', text: '#d8d3c8'},
+} satisfies Record<ColorScheme, {background: string; text: string}>
 
 const groupNodePrefix = '__group__'
 const namespaceGroupPrefix = '__ns__'
@@ -210,7 +236,11 @@ export type NamespaceGroupNodeData = {
   namespace: string
 }
 
-export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: string) {
+export function buildGraph(
+  snapshot: DashboardPayload,
+  selectedResourceKey: string,
+  colorScheme: ColorScheme = 'light',
+) {
   const graph = new dagre.graphlib.Graph()
   graph.setDefaultEdgeLabel(() => ({}))
   graph.setGraph({
@@ -279,9 +309,11 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
     targetHandleMap.set(meta.index, `target-${meta.targetSide}-${handleIndex}`)
   }
 
+  const edgeLabelColor = edgeLabelColors[colorScheme]
+
   const edges = edgeMeta.map((meta) => {
     const {edge, index, visualEndpoints, sourceSide, targetSide} = meta
-    const edgeStyle = relationshipStyle()
+    const edgeStyle = relationshipStyle(colorScheme)
     // Fall back to a deterministic handle name if, for some reason, an index was
     // not assigned above (should not happen since every edge is processed).
     const sourceHandle = sourceHandleMap.get(index) ?? `source-${sourceSide}-0`
@@ -293,8 +325,8 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
       label: edge.detail || edge.type,
       labelBgBorderRadius: 999,
       labelBgPadding: [8, 4],
-      labelBgStyle: {fill: 'rgba(255, 250, 242, 0.92)', fillOpacity: 1},
-      labelStyle: {fill: '#5f5b52', fontSize: 11, fontWeight: 600},
+      labelBgStyle: {fill: edgeLabelColor.background, fillOpacity: 1},
+      labelStyle: {fill: edgeLabelColor.text, fontSize: 11, fontWeight: 600},
       markerEnd: {type: MarkerType.ArrowClosed, width: 18, height: 18},
       source: visualEndpoints.source,
       sourceHandle,
@@ -305,10 +337,13 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
     } satisfies Edge
   })
 
+  const errorGlow = errorGlowColors[colorScheme]
+  const shadow = shadowColors[colorScheme]
+
   const resourceNodes = snapshot.nodes.map((node) => {
     const key = resourceKey(node.ref)
     const position = graph.node(key)
-    const tone = nodeColor(node.ref.kind)
+    const tone = nodeColor(node.ref.kind, colorScheme)
     const isSelected = key === selectedResourceKey
     const isGroup = isGroupNodeKey(node.ref.name)
 
@@ -336,7 +371,7 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
           background: tone.fill,
           border: `2px dashed ${tone.selectedStroke}`,
           borderRadius: 22,
-          boxShadow: '0 12px 30px rgba(31, 43, 39, 0.1)',
+          boxShadow: `0 12px 30px ${shadow.ambient}`,
           padding: 0,
           width: graphNodeWidth,
         },
@@ -347,8 +382,8 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
     const hasNegativeCondition = nodeHasNegativeCondition(node)
     const borderColor = hasNegativeCondition
       ? isSelected
-        ? 'rgba(171, 32, 21, 1)'
-        : 'rgba(171, 32, 21, 0.72)'
+        ? errorGlow.border
+        : errorGlow.borderDim
       : isSelected
         ? tone.selectedStroke
         : tone.stroke
@@ -356,14 +391,14 @@ export function buildGraph(snapshot: DashboardPayload, selectedResourceKey: stri
     const selectionRing = isSelected
       ? `0 0 0 4px ${selectionRingColor}, 0 0 24px 2px ${selectionGlowColor}`
       : ''
-    const errorGlow = hasNegativeCondition
+    const conditionGlow = hasNegativeCondition
       ? isSelected
-        ? '0 0 0 4px rgba(193, 49, 38, 0.2), 0 22px 60px rgba(31, 43, 39, 0.18)'
-        : '0 0 0 3px rgba(193, 49, 38, 0.16), 0 12px 30px rgba(31, 43, 39, 0.1)'
+        ? `0 0 0 4px ${errorGlow.ringSelected}, 0 22px 60px ${shadow.elevated}`
+        : `0 0 0 3px ${errorGlow.ringUnselected}, 0 12px 30px ${shadow.ambient}`
       : isSelected
-        ? '0 22px 60px rgba(31, 43, 39, 0.18)'
-        : '0 12px 30px rgba(31, 43, 39, 0.1)'
-    const boxShadow = selectionRing ? `${selectionRing}, ${errorGlow}` : errorGlow
+        ? `0 22px 60px ${shadow.elevated}`
+        : `0 12px 30px ${shadow.ambient}`
+    const boxShadow = selectionRing ? `${selectionRing}, ${conditionGlow}` : conditionGlow
 
     return {
       data: {

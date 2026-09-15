@@ -38,6 +38,14 @@ import {
 import '@xyflow/react/dist/style.css'
 import './App.css'
 
+import {
+  applyColorScheme,
+  getSystemColorScheme,
+  loadStoredColorSchemeMode,
+  storeColorSchemeMode,
+  watchSystemColorScheme,
+  type ColorSchemeMode,
+} from './colorScheme'
 import type {DashboardPayload} from './types'
 import {
   apiURL,
@@ -124,6 +132,14 @@ export function App() {
   const [selectedKey, setSelectedKey] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
+  // Color scheme: mode is the user's preference ('light' | 'dark' | 'system'),
+  // persisted across sessions. systemColorScheme tracks the live OS/browser
+  // prefers-color-scheme setting (only consulted when mode is 'system').
+  // colorScheme below derives the concrete resolved value from both.
+  const [colorSchemeMode, setColorSchemeMode] = useState<ColorSchemeMode>(() => loadStoredColorSchemeMode())
+  const [systemColorScheme, setSystemColorScheme] = useState(() => getSystemColorScheme())
+  const colorScheme = colorSchemeMode === 'system' ? systemColorScheme : colorSchemeMode
+
   // Filter state
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set())
   const [namespaceFilter, setNamespaceFilter] = useState('')
@@ -199,14 +215,32 @@ export function App() {
     if (!graphPayload) return
 
     const nextSelectedKey = resolveNextSelectedKey(graphPayload)
-    const graph = buildGraph(graphPayload, nextSelectedKey)
+    const graph = buildGraph(graphPayload, nextSelectedKey, colorScheme)
 
     startTransition(() => {
       setSelectedKey(nextSelectedKey)
       setFlowNodes(graph.nodes)
       setFlowEdges(graph.edges)
     })
-  }, [graphPayload, selectedKey])
+  }, [graphPayload, selectedKey, colorScheme])
+
+  useEffect(() => {
+    applyColorScheme(colorScheme)
+  }, [colorScheme])
+
+  useEffect(() => {
+    storeColorSchemeMode(colorSchemeMode)
+  }, [colorSchemeMode])
+
+  useEffect(() => {
+    return watchSystemColorScheme((scheme) => {
+      setSystemColorScheme(scheme)
+    })
+  }, [])
+
+  const toggleColorScheme = useCallback(() => {
+    setColorSchemeMode(colorScheme === 'dark' ? 'light' : 'dark')
+  }, [colorScheme])
 
   const refreshSnapshot = useEffectEvent(async () => {
     try {
@@ -348,6 +382,15 @@ export function App() {
           </p>
         </div>
 
+        <button
+          aria-label={colorScheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          className="theme-toggle"
+          onClick={toggleColorScheme}
+          title={colorScheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          type="button"
+        >
+          {colorScheme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+        </button>
       </section>
 
       <section className="summary-grid" aria-label="Gateway API resource counts">
@@ -468,7 +511,7 @@ export function App() {
               panOnScroll
               proOptions={{hideAttribution: true}}
             >
-              <Background color="rgba(35, 63, 53, 0.12)" gap={20} />
+              <Background color={colorScheme === 'dark' ? 'rgba(200, 220, 210, 0.1)' : 'rgba(35, 63, 53, 0.12)'} gap={20} />
               <Controls showInteractive={false} />
             </ReactFlow>
           </div>

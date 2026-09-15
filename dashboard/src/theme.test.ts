@@ -73,6 +73,31 @@ describe('nodeColor', () => {
     const tone = nodeColor('GatewayClassBinding')
     expect(tone.fill).toContain('241, 214, 195')
   })
+
+  it('defaults to the light scheme when none is provided', () => {
+    expect(nodeColor('Gateway')).toEqual(nodeColor('Gateway', 'light'))
+  })
+
+  it('returns a distinct dark tone for known kinds', () => {
+    const light = nodeColor('Gateway', 'light')
+    const dark = nodeColor('Gateway', 'dark')
+    expect(dark).not.toEqual(light)
+    expect(dark).toHaveProperty('fill')
+    expect(dark).toHaveProperty('selectedFill')
+    expect(dark).toHaveProperty('selectedStroke')
+    expect(dark).toHaveProperty('stroke')
+  })
+
+  it('returns a distinct dark tone for the default fallback', () => {
+    const light = nodeColor('MyCustomCRD', 'light')
+    const dark = nodeColor('MyCustomCRD', 'dark')
+    expect(dark).not.toEqual(light)
+  })
+
+  it('returns a distinct dark tone for route and policy kinds', () => {
+    expect(nodeColor('HTTPRoute', 'dark')).not.toEqual(nodeColor('HTTPRoute', 'light'))
+    expect(nodeColor('BackendTLSPolicy', 'dark')).not.toEqual(nodeColor('BackendTLSPolicy', 'light'))
+  })
 })
 
 describe('relationshipStyle', () => {
@@ -88,5 +113,16 @@ describe('relationshipStyle', () => {
     const b = relationshipStyle()
     expect(a).toEqual(b)
     expect(a).not.toBe(b)
+  })
+
+  it('defaults to the light scheme when none is provided', () => {
+    expect(relationshipStyle()).toEqual(relationshipStyle('light'))
+  })
+
+  it('returns a distinct stroke color for the dark scheme', () => {
+    const light = relationshipStyle('light')
+    const dark = relationshipStyle('dark')
+    expect(dark.lineStyle.stroke).not.toBe(light.lineStyle.stroke)
+    expect(dark.lineStyle.strokeWidth).toBe(light.lineStyle.strokeWidth)
   })
 })
