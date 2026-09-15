@@ -17,13 +17,13 @@ limitations under the License.
 import {MarkerType, type Edge, type Node} from '@xyflow/react'
 import dagre from 'dagre'
 
-import type {ColorScheme} from './colorScheme'
+import type {ColorScheme} from '../state/colorScheme'
 import type {
   DashboardEdge,
   DashboardNode,
   DashboardPayload,
   DashboardResourceRef,
-} from './types'
+} from '../types'
 import {nodeColor, relationshipStyle} from './theme'
 
 export const graphNodeWidth = 232
