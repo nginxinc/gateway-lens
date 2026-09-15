@@ -171,15 +171,17 @@ func TestRunRejectsInvalidBasePath(t *testing.T) {
 func TestNormalizeBasePath(t *testing.T) {
 	t.Parallel()
 
+	path := "/gateway-lens"
+
 	for _, testCase := range []struct {
 		name     string
 		raw      string
 		expected string
 	}{
 		{name: "empty", raw: "", expected: ""},
-		{name: "already normalized", raw: "/gateway-lens", expected: "/gateway-lens"},
-		{name: "missing leading slash", raw: "gateway-lens", expected: "/gateway-lens"},
-		{name: "trailing slash", raw: "/gateway-lens/", expected: "/gateway-lens"},
+		{name: "already normalized", raw: path, expected: path},
+		{name: "missing leading slash", raw: "gateway-lens", expected: path},
+		{name: "trailing slash", raw: "/gateway-lens/", expected: path},
 		{name: "nested path", raw: "/foo/gateway-lens/", expected: "/foo/gateway-lens"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

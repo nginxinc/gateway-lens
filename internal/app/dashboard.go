@@ -119,7 +119,7 @@ func newDashboardHandler(reader liveResourcesReader, logger logr.Logger, basePat
 		return nil, fmt.Errorf("reading dashboard index.html: %w", err)
 	}
 
-	var fileServer http.Handler = http.FileServer(http.FS(assets))
+	var fileServer = http.FileServer(http.FS(assets))
 	if basePath != "" {
 		fileServer = http.StripPrefix(basePath, fileServer)
 	}
