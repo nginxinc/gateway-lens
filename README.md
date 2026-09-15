@@ -112,6 +112,21 @@ When running via the Helm chart, these flags are exposed as the explicit
 [`deploy/`](deploy/), edit the container's `args`
 directly.
 
+## Raw JSON Data
+
+In addition to the interactive dashboard, Gateway Lens exposes the full
+topology snapshot as raw JSON at the `/data` endpoint. This is the same data
+the dashboard itself renders — nodes, edges, conditions, and annotations for
+every watched Gateway API resource — so it's useful for scripting, piping into
+`jq`, or feeding into your own tooling:
+
+```sh
+curl http://localhost:8080/data | jq .
+```
+
+See [`dashboard/README.md`](dashboard/README.md#data-contract) for the full
+shape of the response.
+
 ## Building From Source
 
 **Prerequisites:**
