@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import type {ColorScheme} from './colorScheme'
+import type {ColorScheme} from '../state/colorScheme'
 
 export interface ColorTone {
   fill: string

@@ -48,7 +48,7 @@ import {
   storeColorSchemeMode,
   watchSystemColorScheme,
   type ColorSchemeMode,
-} from './colorScheme'
+} from './state/colorScheme'
 import type {DashboardPayload} from './types'
 import {
   apiURL,
@@ -65,9 +65,10 @@ import {
   type GraphOrientation,
   type GroupNodeData,
   type NamespaceGroupNodeData,
-} from './graph'
-import {loadStoredGraphOrientation, storeGraphOrientation} from './layout'
-import {buildSummaryCards} from './summary'
+} from './graph/graph'
+import {loadStoredGraphOrientation, storeGraphOrientation} from './state/layout'
+import {buildSummaryCards} from './graph/summary'
+import {loadViewStateFromLocation, writeViewStateToURL} from './state/urlState'
 import {
   hasAttributes,
   InspectorList,
@@ -75,7 +76,7 @@ import {
   renderAttributes,
   renderConditions,
   renderRelationships,
-} from './inspector'
+} from './components/inspector'
 
 type ResourceNodeData = {
   displayName: string
@@ -143,10 +144,12 @@ const nodeTypes = {
 
 
 export function App() {
+  const [initialViewState] = useState(() => loadViewStateFromLocation())
+
   const [payload, setPayload] = useState<DashboardPayload | null>(null)
   const [flowNodes, setFlowNodes] = useState<Node[]>([])
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])
-  const [selectedKey, setSelectedKey] = useState('')
+  const [selectedKey, setSelectedKey] = useState(initialViewState.selectedKey)
   const [errorMessage, setErrorMessage] = useState('')
 
   // Color scheme: mode is the user's preference ('light' | 'dark' | 'system'),
@@ -165,9 +168,9 @@ export function App() {
   const lastFitOrientationRef = useRef(orientation)
 
   // Filter state
-  const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(new Set())
-  const [namespaceFilter, setNamespaceFilter] = useState('')
-  const [searchFilter, setSearchFilter] = useState('')
+  const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(initialViewState.hiddenKinds)
+  const [namespaceFilter, setNamespaceFilter] = useState(initialViewState.namespaceFilter)
+  const [searchFilter, setSearchFilter] = useState(initialViewState.searchFilter)
   const [collapsedKinds, setCollapsedKinds] = useState<Set<string>>(new Set())
 
   // Derive the set of all kinds and namespaces from the full payload for the filter UI.
@@ -273,6 +276,10 @@ export function App() {
       setSystemColorScheme(scheme)
     })
   }, [])
+
+  useEffect(() => {
+    writeViewStateToURL({hiddenKinds, namespaceFilter, searchFilter, selectedKey})
+  }, [hiddenKinds, namespaceFilter, searchFilter, selectedKey])
 
   useEffect(() => {
     storeGraphOrientation(orientation)

@@ -17,7 +17,7 @@ limitations under the License.
 import {describe, expect, it} from 'vitest'
 
 import {buildSummaryCards} from './summary'
-import type {DashboardPayload} from './types'
+import type {DashboardPayload} from '../types'
 
 function makeRef(kind: string, name: string, group = 'gateway.networking.k8s.io') {
   return {group, kind, namespace: 'default', name}
