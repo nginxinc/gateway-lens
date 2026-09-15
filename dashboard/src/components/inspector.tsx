@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 import type {ReactNode} from 'react'
-import type {DashboardEdge, DashboardNode, DashboardResourceRef} from './types'
+import type {DashboardEdge, DashboardNode, DashboardResourceRef} from '../types'
 
 interface InspectorItem {
   label: string

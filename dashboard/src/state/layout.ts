@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import {defaultGraphOrientation, type GraphOrientation} from './graph'
+import {defaultGraphOrientation, type GraphOrientation} from '../graph/graph'
 
 const storageKey = 'gateway-lens:graph-orientation'
 

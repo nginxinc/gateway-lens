@@ -16,7 +16,7 @@ limitations under the License.
 
 import {describe, expect, it} from 'vitest'
 
-import type {DashboardEdge, DashboardNode, DashboardPayload, DashboardResourceRef} from './types'
+import type {DashboardEdge, DashboardNode, DashboardPayload, DashboardResourceRef} from '../types'
 import type {Node} from '@xyflow/react'
 
 import type {GroupRect} from './graph'
