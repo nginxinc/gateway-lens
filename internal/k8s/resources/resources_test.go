@@ -44,6 +44,8 @@ const (
 	nameMyGateway     = "my-gateway"
 	nameGW1           = "gw-1"
 	nameGW2           = "gw-2"
+	kindService       = "Service"
+	nameService1      = "svc-1"
 )
 
 // ---- Helpers ----
@@ -612,5 +614,5 @@ func TestResourceDescriptorsCount(t *testing.T) {
 	g := NewWithT(t)
 
 	descriptors := resources.ResourceDescriptors()
-	g.Expect(descriptors).To(HaveLen(10))
+	g.Expect(descriptors).To(HaveLen(12))
 }

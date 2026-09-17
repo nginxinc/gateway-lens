@@ -30,9 +30,23 @@ tests:
             resources:
               - customresourcedefinitions
             verbs: ["watch", "list", "get"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources:
+              - services
+            verbs: ["watch", "list", "get"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["discovery.k8s.io"]
+            resources:
+              - endpointslices
+            verbs: ["watch", "list", "get"]
       - lengthEqual:
           path: rules
-          count: 2
+          count: 4
 
   - it: should merge in the nginx-gateway-fabric provider rules when selected
     set:
@@ -60,7 +74,7 @@ tests:
             verbs: ["watch", "list", "get"]
       - lengthEqual:
           path: rules
-          count: 3
+          count: 5
 
   - it: should fail with a clear error for an unknown provider name
     set:
@@ -86,7 +100,7 @@ tests:
             verbs: ["watch", "list", "get"]
       - lengthEqual:
           path: rules
-          count: 3
+          count: 5
 
   - it: should merge both providers and extraRules together
     set:
@@ -99,4 +113,4 @@ tests:
     asserts:
       - lengthEqual:
           path: rules
-          count: 4
+          count: 6

@@ -206,6 +206,30 @@ describe('nodeHasNegativeCondition', () => {
     }
     expect(nodeHasNegativeCondition(node)).toBe(true)
   })
+
+  it('returns true when an Error-severity diagnostic is present', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1'),
+      diagnostics: [{severity: 'Error', reason: 'NoReadyEndpoints', message: 'The Service has no ready endpoints.'}],
+    }
+    expect(nodeHasNegativeCondition(node)).toBe(true)
+  })
+
+  it('returns false when only Info-severity diagnostics are present', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1'),
+      diagnostics: [{severity: 'Info', reason: 'SomeInfo', message: 'Just some info.'}],
+    }
+    expect(nodeHasNegativeCondition(node)).toBe(false)
+  })
+
+  it('returns false when node has no diagnostics', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1'),
+      diagnostics: [],
+    }
+    expect(nodeHasNegativeCondition(node)).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -616,6 +640,42 @@ describe('buildGraph', () => {
     const graph = buildGraph(snapshot, '')
 
     // Error node should have a wider border
+    expect(flowNodeBorderWidth(graph.nodes[0])).toBeGreaterThan(1)
+  })
+
+  it('includes a readiness badge for a Service node with endpoint attributes', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1', 'default', ''),
+      attributes: {readyEndpoints: '2', totalEndpoints: '3'},
+    }
+    const snapshot = makePayload([node])
+    const graph = buildGraph(snapshot, '')
+
+    expect(graph.nodes[0].data.readinessBadge).toBe('2/3 ready')
+  })
+
+  it('omits the readiness badge for non-Service nodes', () => {
+    const node: DashboardNode = {
+      ...makeNode('Gateway', 'gw-1', 'default'),
+      attributes: {readyEndpoints: '2', totalEndpoints: '3'},
+    }
+    const snapshot = makePayload([node])
+    const graph = buildGraph(snapshot, '')
+
+    expect(graph.nodes[0].data.readinessBadge).toBeUndefined()
+  })
+
+  it('applies error styling to a Service node with zero ready endpoints', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1', 'default', ''),
+      attributes: {readyEndpoints: '0', totalEndpoints: '3'},
+      diagnostics: [{severity: 'Error', reason: 'NoReadyEndpoints', message: 'The Service has no ready endpoints.'}],
+    }
+    const snapshot = makePayload([node])
+    const graph = buildGraph(snapshot, '')
+
+    expect(graph.nodes[0].data.readinessBadge).toBe('0/3 ready')
+    expect(graph.nodes[0].data.hasNegativeCondition).toBe(true)
     expect(flowNodeBorderWidth(graph.nodes[0])).toBeGreaterThan(1)
   })
 

@@ -33,7 +33,7 @@ func TestNewGatewayAPIScheme(t *testing.T) {
 
 	g := NewWithT(t)
 
-	scheme, err := manager.NewGatewayAPIScheme()
+	scheme, err := manager.NewScheme()
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(scheme).ToNot(BeNil())
 
@@ -52,7 +52,7 @@ func TestNewGatewayAPISchemeKnownTypes(t *testing.T) {
 
 	g := NewWithT(t)
 
-	scheme, err := manager.NewGatewayAPIScheme()
+	scheme, err := manager.NewScheme()
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Spot-check that specific types are registered.

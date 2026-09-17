@@ -30,6 +30,8 @@ export const graphNodeWidth = 232
 export const graphNodeHeight = 122
 export const groupNodeCollapseThreshold = 8
 export const referenceGrantSummaryAttribute = 'ReferenceGrant Summary'
+export const serviceReadyEndpointsAttribute = 'readyEndpoints'
+export const serviceTotalEndpointsAttribute = 'totalEndpoints'
 
 const selectionRingColor = 'rgba(37, 99, 235, 0.9)'
 const selectionGlowColor = 'rgba(37, 99, 235, 0.55)'
@@ -107,8 +109,12 @@ function isNegativeCondition(condition: {type: string; status: string}) {
   return errorConditionTypes.has(bareType) && condition.status.toLowerCase() === 'false'
 }
 
+function isErrorDiagnostic(diagnostic: {severity: string}) {
+  return diagnostic.severity.toLowerCase() === 'error'
+}
+
 export function nodeHasNegativeCondition(node: DashboardNode) {
-  return (node.conditions ?? []).some(isNegativeCondition)
+  return (node.conditions ?? []).some(isNegativeCondition) || (node.diagnostics ?? []).some(isErrorDiagnostic)
 }
 
 export function matchesSearch(ref: DashboardResourceRef, searchFilter: string): boolean {
@@ -463,6 +469,7 @@ export function buildGraph(
         detailText: referenceGrantNodeSummary(node),
         hasNegativeCondition,
         kind: node.ref.kind,
+        readinessBadge: serviceReadinessBadge(node),
         sourceBottomHandleCount: sourceHandleCounts.bottom.get(key) ?? 0,
         sourceTopHandleCount: sourceHandleCounts.top.get(key) ?? 0,
         sourceLeftHandleCount: sourceHandleCounts.left.get(key) ?? 0,
@@ -792,6 +799,20 @@ function referenceGrantNodeSummary(node: DashboardNode) {
   }
 
   return node.attributes?.[referenceGrantSummaryAttribute]
+}
+
+function serviceReadinessBadge(node: DashboardNode) {
+  if (node.ref.kind !== 'Service') {
+    return undefined
+  }
+
+  const ready = node.attributes?.[serviceReadyEndpointsAttribute]
+  const total = node.attributes?.[serviceTotalEndpointsAttribute]
+  if (ready === undefined || total === undefined) {
+    return undefined
+  }
+
+  return `${ready}/${total} ready`
 }
 
 function addToSetMap(collection: Map<string, Set<string>>, key: string, value: string) {

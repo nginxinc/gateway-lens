@@ -36,6 +36,14 @@ rules:
     resources:
       - customresourcedefinitions
     verbs: ["watch", "list", "get"]
+  - apiGroups: [""]
+    resources:
+      - services
+    verbs: ["watch", "list", "get"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources:
+      - endpointslices
+    verbs: ["watch", "list", "get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

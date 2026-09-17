@@ -42,12 +42,12 @@ type EventLoop struct {
 	// eventCh is the channel from which raw events are read.
 	eventCh <-chan any
 	// logger is the structured logger for loop lifecycle events.
-	logger  logr.Logger
+	logger logr.Logger
 
 	// currentBatch holds the batch being processed by the handler.
 	currentBatch EventBatch
 	// nextBatch accumulates events while the current batch is being handled.
-	nextBatch    EventBatch
+	nextBatch EventBatch
 
 	// currentBatchID is a monotonically increasing batch counter for logging.
 	currentBatchID int

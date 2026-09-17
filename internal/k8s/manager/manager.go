@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -61,7 +62,7 @@ func New(listenAddress, basePath string, namespaces []string) (*Manager, error) 
 		return nil, fmt.Errorf("loading kubernetes rest config: %w", err)
 	}
 
-	scheme, err := newGatewayAPIScheme()
+	scheme, err := newScheme()
 	if err != nil {
 		return nil, err
 	}
@@ -147,12 +148,16 @@ func (m *Manager) registerRunnables() error {
 	return nil
 }
 
-// newGatewayAPIScheme builds a runtime scheme containing core v1, apiextensions v1, and Gateway API types.
-func newGatewayAPIScheme() (*runtime.Scheme, error) {
+// newScheme builds a runtime scheme.
+func newScheme() (*runtime.Scheme, error) {
 	scheme := runtime.NewScheme()
 
 	if err := corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("adding core v1 scheme: %w", err)
+	}
+
+	if err := discoveryv1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("adding discovery v1 scheme: %w", err)
 	}
 
 	if err := apiextensionsv1.AddToScheme(scheme); err != nil {

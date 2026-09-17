@@ -34,7 +34,7 @@ type UpsertEvent struct {
 // DeleteEvent indicates a resource was deleted.
 type DeleteEvent struct {
 	// Type is a zero-value object identifying the resource kind.
-	Type           client.Object
+	Type client.Object
 	// NamespacedName is the identity of the deleted resource.
 	NamespacedName types.NamespacedName
 }

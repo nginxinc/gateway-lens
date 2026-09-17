@@ -22,6 +22,14 @@ rules:
     resources:
       - customresourcedefinitions
     verbs: ["watch", "list", "get"]
+  - apiGroups: [""]
+    resources:
+      - services
+    verbs: ["watch", "list", "get"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources:
+      - endpointslices
+    verbs: ["watch", "list", "get"]
   {{- range .Values.rbac.providers }}
   {{- $path := printf "providers/%s.yaml" . }}
   {{- $content := $.Files.Get $path }}

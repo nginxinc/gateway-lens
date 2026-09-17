@@ -71,10 +71,12 @@ import {buildSummaryCards} from './graph/summary'
 import {loadViewStateFromLocation, writeViewStateToURL} from './state/urlState'
 import {
   hasAttributes,
+  hasDiagnostics,
   InspectorList,
   InspectorSection,
   renderAttributes,
   renderConditions,
+  renderDiagnostics,
   renderRelationships,
 } from './components/inspector'
 
@@ -83,6 +85,7 @@ type ResourceNodeData = {
   detailText?: string
   hasNegativeCondition: boolean
   kind: string
+  readinessBadge?: string
   sourceBottomHandleCount: number
   sourceTopHandleCount: number
   sourceLeftHandleCount: number
@@ -105,6 +108,17 @@ const nodeTypes = {
           {data.hasNegativeCondition ? <span className="flow-node-alert">! Error Status</span> : null}
           <span className="flow-node-kind">{data.kind}</span>
           <strong>{data.displayName}</strong>
+          {data.readinessBadge ? (
+            <span
+              className={
+                data.hasNegativeCondition
+                  ? 'flow-node-readiness flow-node-readiness-error'
+                  : 'flow-node-readiness'
+              }
+            >
+              {data.readinessBadge}
+            </span>
+          ) : null}
           {data.detailText ? <span className="flow-node-summary">{data.detailText}</span> : null}
         </article>
         {renderNodeHandles('target', Position.Bottom, data.targetBottomHandleCount)}
@@ -640,9 +654,17 @@ export function App() {
                 </InspectorSection>
               ) : null}
 
-              <InspectorSection title="Conditions">
-                {renderConditions(selectedNode)}
-              </InspectorSection>
+              {selectedNode.ref.kind !== 'Service' ? (
+                <InspectorSection title="Conditions">
+                  {renderConditions(selectedNode)}
+                </InspectorSection>
+              ) : null}
+
+              {hasDiagnostics(selectedNode) ? (
+                <InspectorSection title="Diagnostics">
+                  {renderDiagnostics(selectedNode)}
+                </InspectorSection>
+              ) : null}
 
               <InspectorSection title="Relationships">
                 {renderRelationships(relatedEdges, selectedNode)}

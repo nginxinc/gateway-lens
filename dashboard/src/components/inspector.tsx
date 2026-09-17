@@ -26,6 +26,10 @@ export function hasAttributes(node: DashboardNode) {
   return Object.keys(node.attributes ?? {}).length > 0
 }
 
+export function hasDiagnostics(node: DashboardNode) {
+  return (node.diagnostics ?? []).length > 0
+}
+
 export function InspectorSection({children, title}: {children: ReactNode; title: string}) {
   return (
     <section className="inspector-section">
@@ -50,6 +54,16 @@ export function InspectorList({items}: {items: InspectorItem[]}) {
   )
 }
 
+function humanizeAttributeLabel(label: string): string {
+  if (label.includes(' ')) {
+    return label
+  }
+  const spaced = label
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
 export function renderAttributes(node: DashboardNode) {
   const entries = Object.entries(node.attributes ?? {})
   if (!entries.length) {
@@ -59,7 +73,7 @@ export function renderAttributes(node: DashboardNode) {
   return (
     <InspectorList
       items={entries.map(([label, value]) => {
-        return {label, value}
+        return {label: humanizeAttributeLabel(label), value}
       })}
     />
   )
@@ -149,6 +163,24 @@ export function renderConditions(node: DashboardNode) {
           </div>
           {condition.reason && <div className="condition-detail"><span className="condition-label">Reason:</span> {condition.reason}</div>}
           {condition.message && <div className="condition-detail">{condition.message}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function renderDiagnostics(node: DashboardNode) {
+  const diagnostics = node.diagnostics ?? []
+
+  return (
+    <div className="condition-list">
+      {diagnostics.map((diagnostic) => (
+        <div key={`${diagnostic.severity}:${diagnostic.reason}`} className="condition-card">
+          <div className="condition-header">
+            <span className="condition-type">{diagnostic.severity}</span>
+          </div>
+          {diagnostic.reason && <div className="condition-detail"><span className="condition-label">Reason:</span> {diagnostic.reason}</div>}
+          {diagnostic.message && <div className="condition-detail">{diagnostic.message}</div>}
         </div>
       ))}
     </div>

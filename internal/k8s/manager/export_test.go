@@ -21,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
-// NewGatewayAPIScheme wraps newGatewayAPIScheme for testing.
-func NewGatewayAPIScheme() (*runtime.Scheme, error) {
-	return newGatewayAPIScheme()
+// NewScheme wraps newcheme for testing.
+func NewScheme() (*runtime.Scheme, error) {
+	return newScheme()
 }
 
 // BuildNamespaceMap wraps buildNamespaceMap for testing.

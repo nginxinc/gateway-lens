@@ -20,10 +20,12 @@ import {describe, expect, it} from 'vitest'
 import type {DashboardEdge, DashboardNode} from '../types'
 import {
   hasAttributes,
+  hasDiagnostics,
   InspectorList,
   InspectorSection,
   renderAttributes,
   renderConditions,
+  renderDiagnostics,
   renderRelationships,
 } from './inspector'
 
@@ -65,6 +67,24 @@ describe('hasAttributes', () => {
 
   it('returns true for node with attributes', () => {
     expect(hasAttributes(makeNode('Gateway', 'gw-1', {port: '80'}))).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// hasDiagnostics
+// ---------------------------------------------------------------------------
+
+describe('hasDiagnostics', () => {
+  it('returns false for node with no diagnostics', () => {
+    expect(hasDiagnostics(makeNode('Service', 'svc-1'))).toBe(false)
+  })
+
+  it('returns true for node with diagnostics', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1'),
+      diagnostics: [{severity: 'Error', reason: 'NoReadyEndpoints', message: 'The Service has no ready endpoints.'}],
+    }
+    expect(hasDiagnostics(node)).toBe(true)
   })
 })
 
@@ -118,7 +138,7 @@ describe('renderAttributes', () => {
   it('renders attribute entries', () => {
     const node = makeNode('Gateway', 'gw-1', {port: '443', protocol: 'HTTPS'})
     render(<>{renderAttributes(node)}</>)
-    expect(screen.getByText('port')).toBeInTheDocument()
+    expect(screen.getByText('Port')).toBeInTheDocument()
     expect(screen.getByText('443')).toBeInTheDocument()
   })
 
@@ -126,6 +146,27 @@ describe('renderAttributes', () => {
     const node = makeNode('Gateway', 'gw-1')
     render(<>{renderAttributes(node)}</>)
     expect(screen.getByText(/no resource attributes/i)).toBeInTheDocument()
+  })
+
+  it('renders Service endpoint readiness attributes without kind-specific handling', () => {
+    const node = makeNode('Service', 'svc-1', {readyEndpoints: '2', totalEndpoints: '3'})
+    render(<>{renderAttributes(node)}</>)
+    expect(screen.getByText('Ready Endpoints')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('Total Endpoints')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+
+  it('humanizes camelCase attribute labels with spaces', () => {
+    const node = makeNode('Gateway', 'gw-1', {policyType: 'RateLimit'})
+    render(<>{renderAttributes(node)}</>)
+    expect(screen.getByText('Policy Type')).toBeInTheDocument()
+  })
+
+  it('leaves already human-readable labels untouched', () => {
+    const node = makeNode('ReferenceGrant', 'rg-1', {'ReferenceGrant Summary': 'allows frontend namespace'})
+    render(<>{renderAttributes(node)}</>)
+    expect(screen.getByText('ReferenceGrant Summary')).toBeInTheDocument()
   })
 })
 
@@ -220,6 +261,48 @@ describe('renderConditions', () => {
       ],
     }
     render(<>{renderConditions(node)}</>)
+    const cards = document.querySelectorAll('.condition-card')
+    expect(cards).toHaveLength(2)
+  })
+
+})
+
+// ---------------------------------------------------------------------------
+// renderDiagnostics
+// ---------------------------------------------------------------------------
+
+describe('renderDiagnostics', () => {
+  it('renders nothing for no diagnostics', () => {
+    const node = makeNode('Service', 'svc-1')
+    const {container} = render(<>{renderDiagnostics(node)}</>)
+    expect(container.querySelector('.condition-card')).toBeNull()
+  })
+
+  it('renders the endpoint readiness diagnostic for a Service node', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1'),
+      diagnostics: [
+        {
+          severity: 'Error',
+          reason: 'NoReadyEndpoints',
+          message: 'The Service has no ready endpoints.',
+        },
+      ],
+    }
+    render(<>{renderDiagnostics(node)}</>)
+    expect(screen.getByText('Error')).toBeInTheDocument()
+    expect(screen.getByText('The Service has no ready endpoints.')).toBeInTheDocument()
+  })
+
+  it('renders multiple diagnostics', () => {
+    const node: DashboardNode = {
+      ...makeNode('Service', 'svc-1'),
+      diagnostics: [
+        {severity: 'Error', reason: 'NoReadyEndpoints', message: 'The Service has no ready endpoints.'},
+        {severity: 'Error', reason: 'ServiceNotFound', message: 'The Service does not exist.'},
+      ],
+    }
+    render(<>{renderDiagnostics(node)}</>)
     const cards = document.querySelectorAll('.condition-card')
     expect(cards).toHaveLength(2)
   })

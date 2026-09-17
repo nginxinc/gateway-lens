@@ -122,8 +122,8 @@ func pluralTargetRefsCase() parseTargetRefsTestCase {
 				},
 				map[string]any{
 					keyGroup: "",
-					keyKind:  "Service",
-					keyName:  "svc-1",
+					keyKind:  kindService,
+					keyName:  nameService1,
 				},
 			},
 		}),
@@ -136,9 +136,9 @@ func pluralTargetRefsCase() parseTargetRefsTestCase {
 			},
 			{
 				Group:     "",
-				Kind:      "Service",
+				Kind:      kindService,
 				Namespace: nsDefault,
-				Name:      "svc-1",
+				Name:      nameService1,
 			},
 		},
 	}
@@ -185,9 +185,9 @@ func targetRefWithExplicitNamespaceCase() parseTargetRefsTestCase {
 		name: "uses explicit namespace from targetRef",
 		obj: newPolicyUnstructured("my-policy", map[string]any{
 			keyTargetRef: map[string]any{
-				keyGroup:    groupGatewayAPI,
-				keyKind:     kindGateway,
-				keyName:     "gw-other",
+				keyGroup:     groupGatewayAPI,
+				keyKind:      kindGateway,
+				keyName:      "gw-other",
 				keyNamespace: "other-ns",
 			},
 		}),
@@ -574,8 +574,8 @@ func newPolicyUnstructured(name string, spec map[string]any) *unstructured.Unstr
 			fieldAPIVersion: "example.io/v1",
 			keyKind:         "TestPolicy",
 			fieldMetadata: map[string]any{
-					keyNamespace: nsDefault,
-				keyName:     name,
+				keyNamespace: nsDefault,
+				keyName:      name,
 			},
 			fieldSpec: spec,
 		},

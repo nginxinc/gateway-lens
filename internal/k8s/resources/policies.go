@@ -339,8 +339,8 @@ func resolveUnstructuredTargetRef(
 	refMap map[string]any,
 ) topology.PolicyTargetRef {
 	group, _ := refMap["group"].(string) //nolint:revive // zero-value on missing key is intentional
-	kind, _ := refMap["kind"].(string)  //nolint:revive // zero-value on missing key is intentional
-	name, _ := refMap["name"].(string)  //nolint:revive // zero-value on missing key is intentional
+	kind, _ := refMap["kind"].(string)   //nolint:revive // zero-value on missing key is intentional
+	name, _ := refMap["name"].(string)   //nolint:revive // zero-value on missing key is intentional
 
 	namespace := policyNamespace
 	if ns, ok := refMap["namespace"].(string); ok && ns != "" {

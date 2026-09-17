@@ -17,6 +17,10 @@ limitations under the License.
 package topology
 
 import (
+	"strconv"
+
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -39,6 +43,10 @@ const (
 	detailExtensionRef       = "extensionRef"
 	detailParametersRef      = "parametersRef"
 	attributePolicyType      = "policyType"
+	attributeReadyEndpoints  = "readyEndpoints"
+	attributeTotalEndpoints  = "totalEndpoints"
+	reasonNoReadyEndpoints   = "NoReadyEndpoints"
+	reasonServiceNotFound    = "ServiceNotFound"
 )
 
 // TranslateGatewayAPI builds a base topology snapshot from typed Gateway API resources.
@@ -55,6 +63,8 @@ func TranslateGatewayAPI(resources GatewayAPIResources) Snapshot {
 	builder.addReferenceGrantNodes(resources.ReferenceGrants)
 	builder.addBackendTLSPolicyNodes(resources.BackendTLSPolicies)
 	builder.addPolicyNodes(resources.Policies)
+	builder.addServiceReadinessNodes(resources.Services, resources.EndpointSlices)
+	builder.addMissingServiceConditions(resources.Services)
 
 	return Snapshot{Nodes: builder.nodes, Edges: builder.edges}
 }
@@ -110,6 +120,16 @@ func (b *baseSnapshotBuilder) appendNodeConditions(ref ResourceRef, conditions [
 	}
 
 	b.nodes[index].Conditions = append(b.nodes[index].Conditions, conditions...)
+}
+
+// appendNodeDiagnostics appends diagnostics to an existing node.
+func (b *baseSnapshotBuilder) appendNodeDiagnostics(ref ResourceRef, diagnostics []Diagnostic) {
+	index, exists := b.nodeSet[ref]
+	if !exists {
+		return
+	}
+
+	b.nodes[index].Diagnostics = append(b.nodes[index].Diagnostics, diagnostics...)
 }
 
 // normalizeConditions converts Kubernetes status conditions to the topology domain type.
@@ -518,6 +538,110 @@ func (b *baseSnapshotBuilder) setNodeAttributes(ref ResourceRef, attributes map[
 	}
 
 	b.nodes[index].Attributes = attributes
+}
+
+// addServiceReadinessNodes annotates existing Service nodes with ready/total endpoint counts
+// (derived from EndpointSlices) and a diagnostic that is flagged as an
+// error when a Service has zero ready endpoints.
+func (b *baseSnapshotBuilder) addServiceReadinessNodes(
+	services []corev1.Service,
+	endpointSlices []discoveryv1.EndpointSlice,
+) {
+	for _, service := range services {
+		ref := ResourceRef{Kind: defaultServiceKind, Namespace: service.Namespace, Name: service.Name}
+		if _, exists := b.nodeSet[ref]; !exists {
+			continue
+		}
+
+		ready, total := countServiceEndpoints(service, endpointSlices)
+
+		b.setNodeAttributes(ref, map[string]string{
+			attributeReadyEndpoints: strconv.Itoa(ready),
+			attributeTotalEndpoints: strconv.Itoa(total),
+		})
+
+		if diagnostic, hasDiagnostic := endpointsReadyDiagnostic(ready); hasDiagnostic {
+			b.appendNodeDiagnostics(ref, []Diagnostic{diagnostic})
+		}
+	}
+}
+
+// addMissingServiceConditions flags Service-kind nodes that were created via a route's
+// backendRef but do not correspond to an actual Service resource, with an error diagnostic
+// so the missing Service is visible on the graph.
+func (b *baseSnapshotBuilder) addMissingServiceConditions(services []corev1.Service) {
+	existingServices := make(map[ResourceRef]struct{}, len(services))
+	for _, service := range services {
+		ref := ResourceRef{Kind: defaultServiceKind, Namespace: service.Namespace, Name: service.Name}
+		existingServices[ref] = struct{}{}
+	}
+
+	for ref := range b.nodeSet {
+		if ref.Kind != defaultServiceKind {
+			continue
+		}
+
+		if _, exists := existingServices[ref]; exists {
+			continue
+		}
+
+		b.appendNodeDiagnostics(ref, []Diagnostic{serviceNotFoundDiagnostic()})
+	}
+}
+
+// serviceNotFoundDiagnostic builds the diagnostic applied to a Service node that is
+// referenced by a route's backendRef but does not exist.
+func serviceNotFoundDiagnostic() Diagnostic {
+	return Diagnostic{
+		Severity: DiagnosticSeverityError,
+		Reason:   reasonServiceNotFound,
+		Message:  "The Service does not exist.",
+	}
+}
+
+// countServiceEndpoints sums ready and total endpoints across all EndpointSlices owned by
+// the given Service (matched via the kubernetes.io/service-name label within the same namespace).
+func countServiceEndpoints(
+	service corev1.Service,
+	endpointSlices []discoveryv1.EndpointSlice,
+) (int, int) {
+	ready, total := 0, 0
+
+	for _, slice := range endpointSlices {
+		if slice.Namespace != service.Namespace {
+			continue
+		}
+
+		if slice.Labels[discoveryv1.LabelServiceName] != service.Name {
+			continue
+		}
+
+		for _, endpoint := range slice.Endpoints {
+			total++
+
+			// A nil Ready value is interpreted as ready, per the EndpointSlice API contract.
+			if endpoint.Conditions.Ready == nil || *endpoint.Conditions.Ready {
+				ready++
+			}
+		}
+	}
+
+	return ready, total
+}
+
+// endpointsReadyDiagnostic builds the endpoint-readiness diagnostic for a Service node when
+// it has zero ready endpoints. It reports ok=false when no diagnostic should be attached
+// (i.e. the Service has at least one ready endpoint).
+func endpointsReadyDiagnostic(readyEndpoints int) (Diagnostic, bool) {
+	if readyEndpoints > 0 {
+		return Diagnostic{}, false
+	}
+
+	return Diagnostic{
+		Severity: DiagnosticSeverityError,
+		Reason:   reasonNoReadyEndpoints,
+		Message:  "The Service has no ready endpoints.",
+	}, true
 }
 
 // addRoutes is a generic helper that adds route nodes, parent/backend/extensionRef edges, and conditions.
