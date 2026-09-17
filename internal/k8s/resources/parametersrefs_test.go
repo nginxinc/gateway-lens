@@ -31,11 +31,11 @@ import (
 )
 
 const (
-	groupConfig      = "config.example.io"
-	kindGWClassConf  = "GatewayClassConfig"
-	kindGWConfig     = "GatewayConfig"
-	groupInfra       = "infra.example.io"
-	kindInfraConfig  = "InfraConfig"
+	groupConfig     = "config.example.io"
+	kindGWClassConf = "GatewayClassConfig"
+	kindGWConfig    = "GatewayConfig"
+	groupInfra      = "infra.example.io"
+	kindInfraConfig = "InfraConfig"
 )
 
 // ---- CollectGatewayClassParametersRefGVKs ----

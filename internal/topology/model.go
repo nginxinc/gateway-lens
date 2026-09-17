@@ -68,23 +68,48 @@ const (
 // Condition captures a normalized Kubernetes-style status condition.
 type Condition struct {
 	// Type is the condition type (e.g. "Accepted", "Programmed").
-	Type    string
+	Type string
 	// Status is the condition status ("True", "False", or "Unknown").
-	Status  string
+	Status string
 	// Reason is a machine-readable reason for the condition.
-	Reason  string
+	Reason string
 	// Message is a human-readable description of the condition.
+	Message string
+}
+
+// DiagnosticSeverity classifies how serious a Diagnostic is.
+type DiagnosticSeverity string
+
+const (
+	// DiagnosticSeverityError indicates a problem that likely
+	// breaks traffic (e.g. a referenced Service does not exist).
+	DiagnosticSeverityError DiagnosticSeverity = "Error"
+	// DiagnosticSeverityInfo indicates informational analysis with no error implied.
+	DiagnosticSeverityInfo DiagnosticSeverity = "Info"
+)
+
+// Diagnostic captures an observation about a resource that is not
+// itself a status condition reported by the resource.
+type Diagnostic struct {
+	// Severity classifies how serious the diagnostic is.
+	Severity DiagnosticSeverity
+	// Reason is a machine-readable reason for the diagnostic.
+	Reason string
+	// Message is a human-readable description of the diagnostic.
 	Message string
 }
 
 // Node represents a resource in the topology graph.
 type Node struct {
 	// Ref is the identity of the Kubernetes resource.
-	Ref        ResourceRef
+	Ref ResourceRef
 	// Attributes are key-value metadata pairs for the node.
 	Attributes map[string]string
-	// Conditions are the normalized status conditions reported by the resource.
+	// Conditions are the normalized status conditions reported by the resource itself.
 	Conditions []Condition
+	// Diagnostics are observations about the resource that are not
+	// conditions reported by the resource itself.
+	Diagnostics []Diagnostic
 }
 
 // IsValid reports whether the node has a valid resource identity.
@@ -95,11 +120,11 @@ func (n Node) IsValid() bool {
 // Edge represents a directional relationship in the topology graph.
 type Edge struct {
 	// From is the source resource of the edge.
-	From   ResourceRef
+	From ResourceRef
 	// To is the destination resource of the edge.
-	To     ResourceRef
+	To ResourceRef
 	// Type categorizes the relationship.
-	Type   EdgeType
+	Type EdgeType
 	// Detail is an optional qualifier for the edge type.
 	Detail string
 }
@@ -112,21 +137,21 @@ func (e Edge) IsValid() bool {
 // NodeAnnotation stores adapter-provided metadata for a resource node.
 type NodeAnnotation struct {
 	// Ref identifies the node this annotation belongs to.
-	Ref    ResourceRef
+	Ref ResourceRef
 	// Source is the adapter that produced this annotation.
 	Source string
 	// Key is the annotation key.
-	Key    string
+	Key string
 	// Value is the annotation value.
-	Value  string
+	Value string
 }
 
 // Snapshot is the fully assembled topology for frontend consumption.
 type Snapshot struct {
 	// Nodes are the topology graph nodes.
-	Nodes       []Node
+	Nodes []Node
 	// Edges are the directional relationships between nodes.
-	Edges       []Edge
+	Edges []Edge
 	// Annotations are adapter-provided metadata entries attached to nodes.
 	Annotations []NodeAnnotation
 }
@@ -178,5 +203,13 @@ func cloneNode(node Node) Node {
 	copiedConditions := make([]Condition, len(node.Conditions))
 	copy(copiedConditions, node.Conditions)
 
-	return Node{Ref: node.Ref, Attributes: copiedAttributes, Conditions: copiedConditions}
+	copiedDiagnostics := make([]Diagnostic, len(node.Diagnostics))
+	copy(copiedDiagnostics, node.Diagnostics)
+
+	return Node{
+		Ref:         node.Ref,
+		Attributes:  copiedAttributes,
+		Conditions:  copiedConditions,
+		Diagnostics: copiedDiagnostics,
+	}
 }

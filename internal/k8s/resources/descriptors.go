@@ -21,6 +21,8 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -199,6 +201,40 @@ func resourceDescriptors() []resourceDescriptor { //nolint:funlen // descriptor 
 				resources.ListenerSets = projectValues(
 					objects,
 					func(item *gatewayv1.ListenerSet) gatewayv1.ListenerSet { return *item },
+					logger,
+				)
+			},
+		},
+		{
+			name:   "resources-Service",
+			object: &corev1.Service{},
+			list: newListFunc(
+				func() *corev1.ServiceList { return &corev1.ServiceList{} },
+				func(l *corev1.ServiceList) []corev1.Service { return l.Items },
+				func(v *corev1.Service) client.Object { return v.DeepCopy() },
+				"services",
+			),
+			projectTo: func(resources *topology.GatewayAPIResources, objects []client.Object, logger logr.Logger) {
+				resources.Services = projectValues(
+					objects,
+					func(item *corev1.Service) corev1.Service { return *item },
+					logger,
+				)
+			},
+		},
+		{
+			name:   "resources-EndpointSlice",
+			object: &discoveryv1.EndpointSlice{},
+			list: newListFunc(
+				func() *discoveryv1.EndpointSliceList { return &discoveryv1.EndpointSliceList{} },
+				func(l *discoveryv1.EndpointSliceList) []discoveryv1.EndpointSlice { return l.Items },
+				func(v *discoveryv1.EndpointSlice) client.Object { return v.DeepCopy() },
+				"endpoint slices",
+			),
+			projectTo: func(resources *topology.GatewayAPIResources, objects []client.Object, logger logr.Logger) {
+				resources.EndpointSlices = projectValues(
+					objects,
+					func(item *discoveryv1.EndpointSlice) discoveryv1.EndpointSlice { return *item },
 					logger,
 				)
 			},

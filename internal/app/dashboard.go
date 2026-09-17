@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,8 +54,11 @@ type dashboardNodeView struct {
 	Ref dashboardResourceRefView `json:"ref"`
 	// Attributes are key-value metadata pairs for the node.
 	Attributes map[string]string `json:"attributes,omitempty"`
-	// Conditions are the status conditions reported by the resource.
+	// Conditions are the status conditions reported by the resource itself.
 	Conditions []dashboardConditionView `json:"conditions,omitempty"`
+	// Diagnostics are gateway-lens-computed observations about the resource that are not
+	// conditions reported by the resource itself.
+	Diagnostics []dashboardDiagnosticView `json:"diagnostics,omitempty"`
 	// Manifest is the YAML-encoded resource manifest.
 	Manifest string `json:"manifest,omitempty"`
 }
@@ -92,6 +96,16 @@ type dashboardConditionView struct {
 	// Reason is a machine-readable reason for the condition.
 	Reason string `json:"reason,omitempty"`
 	// Message is a human-readable description of the condition.
+	Message string `json:"message,omitempty"`
+}
+
+// dashboardDiagnosticView is the JSON representation of a gateway-lens-computed diagnostic.
+type dashboardDiagnosticView struct {
+	// Severity classifies how serious the diagnostic is (e.g. "Error", "Info").
+	Severity string `json:"severity"`
+	// Reason is a machine-readable reason for the diagnostic.
+	Reason string `json:"reason,omitempty"`
+	// Message is a human-readable description of the diagnostic.
 	Message string `json:"message,omitempty"`
 }
 
@@ -281,10 +295,11 @@ func newDashboardPayload(
 	nodes := make([]dashboardNodeView, len(snapshot.Nodes))
 	for idx, node := range snapshot.Nodes {
 		nodes[idx] = dashboardNodeView{
-			Ref:        newDashboardResourceRefView(node.Ref),
-			Attributes: node.Attributes,
-			Conditions: newDashboardConditionViews(node.Conditions),
-			Manifest:   manifestByRef[node.Ref],
+			Ref:         newDashboardResourceRefView(node.Ref),
+			Attributes:  node.Attributes,
+			Conditions:  newDashboardConditionViews(node.Conditions),
+			Diagnostics: newDashboardDiagnosticViews(node.Diagnostics),
+			Manifest:    manifestByRef[node.Ref],
 		}
 	}
 
@@ -337,6 +352,7 @@ func manifestEntries(resources topology.GatewayAPIResources) []manifestEntry {
 		{"ReferenceGrant", addManifestsFunc(v1, "ReferenceGrant", resources.ReferenceGrants)},
 		{"BackendTLSPolicy", addManifestsFunc(v1, "BackendTLSPolicy", resources.BackendTLSPolicies)},
 		{"ListenerSet", addManifestsFunc(v1, "ListenerSet", resources.ListenerSets)},
+		{"Service", addManifestsFunc(corev1.SchemeGroupVersion.String(), "Service", resources.Services)},
 	}
 }
 
@@ -457,6 +473,20 @@ func newDashboardConditionViews(conditions []topology.Condition) []dashboardCond
 			Status:  condition.Status,
 			Reason:  condition.Reason,
 			Message: condition.Message,
+		}
+	}
+
+	return views
+}
+
+// newDashboardDiagnosticViews converts topology diagnostics to their JSON view counterparts.
+func newDashboardDiagnosticViews(diagnostics []topology.Diagnostic) []dashboardDiagnosticView {
+	views := make([]dashboardDiagnosticView, len(diagnostics))
+	for idx, diagnostic := range diagnostics {
+		views[idx] = dashboardDiagnosticView{
+			Severity: string(diagnostic.Severity),
+			Reason:   diagnostic.Reason,
+			Message:  diagnostic.Message,
 		}
 	}
 

@@ -108,12 +108,12 @@ func TestSnapshotClone(t *testing.T) {
 
 	copied := original.Clone()
 	copied.Nodes[0].Attributes[classKey] = "changed"
-	copied.Nodes[0].Conditions[0].Status = "False"
+	copied.Nodes[0].Conditions[0].Status = conditionFalse
 	copied.Edges[0].Detail = "changed"
 	copied.Annotations[0].Value = "disabled"
 
 	g.Expect(original.Nodes[0].Attributes[classKey]).To(Equal(classExample))
-	g.Expect(original.Nodes[0].Conditions[0].Status).To(Equal("True"))
+	g.Expect(original.Nodes[0].Conditions[0].Status).To(Equal(conditionTrue))
 	g.Expect(original.Edges[0].Detail).To(BeEmpty())
 	g.Expect(original.Annotations[0].Value).To(Equal("enabled"))
 }

@@ -16,7 +16,18 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     rules: {
-      'react-refresh/only-export-components': ['error', {allowConstantExport: true, allowExportNames: ['hasAttributes', 'renderAttributes', 'renderRelationships', 'renderConditions']}],
+      'react-refresh/only-export-components': [
+          'error', {
+            allowConstantExport: true, 
+            allowExportNames:[
+              'hasAttributes',
+              'hasDiagnostics',
+              'renderAttributes',
+              'renderRelationships',
+              'renderConditions', 'renderDiagnostics',
+            ]
+          }
+        ],
     },
     languageOptions: {
       globals: globals.browser,

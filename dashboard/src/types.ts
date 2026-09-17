@@ -25,6 +25,7 @@ export interface DashboardNode {
   ref: DashboardResourceRef
   attributes: Record<string, string>
   conditions?: DashboardCondition[]
+  diagnostics?: DashboardDiagnostic[]
   manifest?: string
 }
 
@@ -45,6 +46,12 @@ export interface DashboardAnnotation {
 export interface DashboardCondition {
   type: string
   status: string
+  reason?: string
+  message?: string
+}
+
+export interface DashboardDiagnostic {
+  severity: string
   reason?: string
   message?: string
 }

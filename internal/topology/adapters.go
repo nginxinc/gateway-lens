@@ -17,6 +17,8 @@ limitations under the License.
 package topology
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -56,31 +58,35 @@ type PolicyTargetRef struct {
 // GatewayAPIResources contains typed Gateway API resources for assembly.
 type GatewayAPIResources struct {
 	// GatewayClasses holds the watched GatewayClass resources.
-	GatewayClasses     []gatewayv1.GatewayClass
+	GatewayClasses []gatewayv1.GatewayClass
 	// Gateways holds the watched Gateway resources.
-	Gateways           []gatewayv1.Gateway
+	Gateways []gatewayv1.Gateway
 	// HTTPRoutes holds the watched HTTPRoute resources.
-	HTTPRoutes         []gatewayv1.HTTPRoute
+	HTTPRoutes []gatewayv1.HTTPRoute
 	// GRPCRoutes holds the watched GRPCRoute resources.
-	GRPCRoutes         []gatewayv1.GRPCRoute
+	GRPCRoutes []gatewayv1.GRPCRoute
 	// TLSRoutes holds the watched TLSRoute resources.
-	TLSRoutes          []gatewayv1.TLSRoute
+	TLSRoutes []gatewayv1.TLSRoute
 	// TCPRoutes holds the watched TCPRoute resources.
-	TCPRoutes          []gatewayv1.TCPRoute
+	TCPRoutes []gatewayv1.TCPRoute
 	// UDPRoutes holds the watched UDPRoute resources.
-	UDPRoutes          []gatewayv1.UDPRoute
+	UDPRoutes []gatewayv1.UDPRoute
 	// ReferenceGrants holds the watched ReferenceGrant resources.
-	ReferenceGrants    []gatewayv1.ReferenceGrant
+	ReferenceGrants []gatewayv1.ReferenceGrant
 	// BackendTLSPolicies holds the watched BackendTLSPolicy resources.
 	BackendTLSPolicies []gatewayv1.BackendTLSPolicy
 	// ListenerSets holds the watched ListenerSet resources.
-	ListenerSets       []gatewayv1.ListenerSet
+	ListenerSets []gatewayv1.ListenerSet
+	// Services holds the watched Service resources.
+	Services []corev1.Service
+	// EndpointSlices holds the watched EndpointSlice resources.
+	EndpointSlices []discoveryv1.EndpointSlice
 	// Policies holds dynamically discovered unstructured policy resources.
-	Policies           []Policy
+	Policies []Policy
 	// ExtensionRefs holds dynamically discovered ExtensionRef CRD instances.
-	ExtensionRefs      []unstructured.Unstructured
+	ExtensionRefs []unstructured.Unstructured
 	// ParametersRefs holds dynamically discovered ParametersRef CRD instances.
-	ParametersRefs     []unstructured.Unstructured
+	ParametersRefs []unstructured.Unstructured
 }
 
 // PolicyAdapter enriches a topology snapshot with implementor-specific metadata.

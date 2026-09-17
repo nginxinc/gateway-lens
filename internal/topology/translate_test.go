@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,6 +46,7 @@ const (
 	wildcardRefName      = "*"
 
 	conditionTrue           = "True"
+	conditionFalse          = "False"
 	conditionTypeAccepted   = "Accepted"
 	conditionTypeProgrammed = "Programmed"
 	conditionTypeResolved   = "ResolvedRefs"
@@ -51,11 +54,15 @@ const (
 	msgProgrammed           = "Resource programmed"
 	msgResolved             = "Refs resolved"
 
-	groupExampleIO         = "example.io"
-	groupSecurityExIO      = "security.example.io"
-	kindRateLimitPolicy    = "RateLimitPolicy"
-	kindAuthPolicy         = "AuthPolicy"
-	controllerNameExample  = "example.com/controller"
+	groupExampleIO        = "example.io"
+	groupSecurityExIO     = "security.example.io"
+	kindRateLimitPolicy   = "RateLimitPolicy"
+	kindAuthPolicy        = "AuthPolicy"
+	controllerNameExample = "example.com/controller"
+
+	reasonNoReadyEndpoints = "NoReadyEndpoints"
+	reasonServiceNotFound  = "ServiceNotFound"
+	endpointAddress        = "10.0.0.1"
 )
 
 type translateGatewayAPITestCase struct {
@@ -136,7 +143,7 @@ func baseTranslationCase() translateGatewayAPITestCase {
 						},
 						Rules: []gatewayv1.HTTPRouteRule{
 							{
-								BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef(nameBackend)},
+								BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()},
 							},
 						},
 					},
@@ -382,11 +389,11 @@ func backendTLSPolicyCase() translateGatewayAPITestCase {
 	}
 }
 
-func serviceBackendRef(name string) gatewayv1.HTTPBackendRef {
+func serviceBackendRef() gatewayv1.HTTPBackendRef {
 	return gatewayv1.HTTPBackendRef{
 		BackendRef: gatewayv1.BackendRef{
 			BackendObjectReference: gatewayv1.BackendObjectReference{
-				Name: gatewayv1.ObjectName(name),
+				Name: gatewayv1.ObjectName(nameBackend),
 			},
 		},
 	}
@@ -1173,6 +1180,279 @@ func TestTranslateGatewayAPIPolicyAttributes(t *testing.T) {
 	g.Expect(policyNode.Attributes).To(HaveKeyWithValue("policyType", "direct"))
 }
 
+func findNodeByRef(nodes []topology.Node, ref topology.ResourceRef) topology.Node {
+	for _, node := range nodes {
+		if node.Ref == ref {
+			return node
+		}
+	}
+
+	return topology.Node{}
+}
+
+func TestTranslateGatewayAPIServiceReadiness(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	trueVal := true
+	falseVal := false
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					Rules: []gatewayv1.HTTPRouteRule{
+						{BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()}},
+					},
+				},
+			},
+		},
+		Services: []corev1.Service{
+			{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend}},
+		},
+		EndpointSlices: []discoveryv1.EndpointSlice{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespaceDefault,
+					Name:      nameBackend + "-abcde",
+					Labels:    map[string]string{discoveryv1.LabelServiceName: nameBackend},
+				},
+				Endpoints: []discoveryv1.Endpoint{
+					{Addresses: []string{endpointAddress}, Conditions: discoveryv1.EndpointConditions{Ready: &trueVal}},
+					{Addresses: []string{"10.0.0.2"}, Conditions: discoveryv1.EndpointConditions{Ready: &falseVal}},
+					{Addresses: []string{"10.0.0.3"}, Conditions: discoveryv1.EndpointConditions{}},
+				},
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+	serviceNode := findNodeByRef(snapshot.Nodes, serviceRef)
+
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("readyEndpoints", "2"))
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("totalEndpoints", "3"))
+	g.Expect(serviceNode.Diagnostics).To(BeEmpty())
+}
+
+func TestTranslateGatewayAPIServiceReadinessZeroReady(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	falseVal := false
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					Rules: []gatewayv1.HTTPRouteRule{
+						{BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()}},
+					},
+				},
+			},
+		},
+		Services: []corev1.Service{
+			{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend}},
+		},
+		EndpointSlices: []discoveryv1.EndpointSlice{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespaceDefault,
+					Name:      nameBackend + "-abcde",
+					Labels:    map[string]string{discoveryv1.LabelServiceName: nameBackend},
+				},
+				Endpoints: []discoveryv1.Endpoint{
+					{Addresses: []string{endpointAddress}, Conditions: discoveryv1.EndpointConditions{Ready: &falseVal}},
+				},
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+	serviceNode := findNodeByRef(snapshot.Nodes, serviceRef)
+
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("readyEndpoints", "0"))
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("totalEndpoints", "1"))
+	g.Expect(serviceNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonNoReadyEndpoints,
+		Message:  "The Service has no ready endpoints.",
+	}))
+}
+
+func TestTranslateGatewayAPIServiceReadinessNoEndpoints(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					Rules: []gatewayv1.HTTPRouteRule{
+						{BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()}},
+					},
+				},
+			},
+		},
+		Services: []corev1.Service{
+			{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend}},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+	serviceNode := findNodeByRef(snapshot.Nodes, serviceRef)
+
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("readyEndpoints", "0"))
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("totalEndpoints", "0"))
+	g.Expect(serviceNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonNoReadyEndpoints,
+		Message:  "The Service has no ready endpoints.",
+	}))
+}
+
+func TestTranslateGatewayAPIServiceReadinessOmitsUnreferencedService(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		Services: []corev1.Service{
+			{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend}},
+		},
+		EndpointSlices: []discoveryv1.EndpointSlice{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespaceDefault,
+					Name:      nameBackend + "-abcde",
+					Labels:    map[string]string{discoveryv1.LabelServiceName: nameBackend},
+				},
+				Endpoints: []discoveryv1.Endpoint{
+					{Addresses: []string{endpointAddress}},
+				},
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+
+	g.Expect(snapshot.Nodes).NotTo(ContainElement(HaveField("Ref", serviceRef)))
+}
+
+func TestTranslateGatewayAPIServiceReadinessMergesWithBackendRef(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					Rules: []gatewayv1.HTTPRouteRule{
+						{BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()}},
+					},
+				},
+			},
+		},
+		Services: []corev1.Service{
+			{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend}},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+
+	matchCount := 0
+
+	for _, node := range snapshot.Nodes {
+		if node.Ref == serviceRef {
+			matchCount++
+		}
+	}
+
+	g.Expect(matchCount).To(Equal(1))
+
+	serviceNode := findNodeByRef(snapshot.Nodes, serviceRef)
+	g.Expect(serviceNode.Attributes).To(HaveKeyWithValue("readyEndpoints", "0"))
+}
+
+func TestTranslateGatewayAPIFlagsNonexistentBackendService(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					Rules: []gatewayv1.HTTPRouteRule{
+						{BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()}},
+					},
+				},
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+	serviceNode := findNodeByRef(snapshot.Nodes, serviceRef)
+
+	g.Expect(serviceNode.Ref).To(Equal(serviceRef))
+	g.Expect(serviceNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonServiceNotFound,
+		Message:  "The Service does not exist.",
+	}))
+}
+
+func TestTranslateGatewayAPIDoesNotFlagExistingBackendService(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					Rules: []gatewayv1.HTTPRouteRule{
+						{BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()}},
+					},
+				},
+			},
+		},
+		Services: []corev1.Service{
+			{ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend}},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	serviceRef := topology.ResourceRef{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend}
+	serviceNode := findNodeByRef(snapshot.Nodes, serviceRef)
+
+	for _, diagnostic := range serviceNode.Diagnostics {
+		g.Expect(diagnostic.Reason).NotTo(Equal(reasonServiceNotFound))
+	}
+}
+
 func httpRouteExtensionRefCase() translateGatewayAPITestCase {
 	const (
 		filterGroup = "filters.example.io"
@@ -1206,14 +1486,15 @@ func httpRouteExtensionRefCase() translateGatewayAPITestCase {
 										},
 									},
 								},
-								BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef(nameBackend)},
+								BackendRefs: []gatewayv1.HTTPBackendRef{serviceBackendRef()},
 							},
 						},
 					},
 				},
 			},
 		},
-		expectedNodes: []topology.ResourceRef{routeRef, filterRef,
+		expectedNodes: []topology.ResourceRef{
+			routeRef, filterRef,
 			{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend},
 		},
 		expectedEdges: []topology.Edge{
@@ -1271,7 +1552,8 @@ func httpRouteBackendExtensionRefCase() translateGatewayAPITestCase {
 				},
 			},
 		},
-		expectedNodes: []topology.ResourceRef{routeRef, filterRef,
+		expectedNodes: []topology.ResourceRef{
+			routeRef, filterRef,
 			{Kind: kindService, Namespace: namespaceDefault, Name: nameBackend},
 		},
 		expectedEdges: []topology.Edge{
@@ -1323,7 +1605,8 @@ func grpcRouteExtensionRefCase() translateGatewayAPITestCase {
 				},
 			},
 		},
-		expectedNodes: []topology.ResourceRef{routeRef, filterRef,
+		expectedNodes: []topology.ResourceRef{
+			routeRef, filterRef,
 			{Kind: kindService, Namespace: namespaceDefault, Name: backendName},
 		},
 		expectedEdges: []topology.Edge{

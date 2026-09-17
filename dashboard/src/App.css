@@ -248,6 +248,27 @@
   line-height: 1.2;
 }
 
+.flow-node-readiness {
+  align-self: start;
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  border-radius: 999px;
+  color: var(--color-accent-text);
+  display: inline-flex;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 4px 8px;
+  width: max-content;
+}
+
+.flow-node-readiness-error {
+  background: var(--color-alert-bg);
+  border: 1px solid var(--color-alert-border);
+  color: var(--color-alert-text);
+}
+
 .flow-node-summary {
   color: var(--color-text-muted);
   display: -webkit-box;

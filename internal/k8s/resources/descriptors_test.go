@@ -24,6 +24,8 @@ import (
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -145,11 +147,13 @@ func TestDescriptorObjectTypes(t *testing.T) {
 		&gatewayv1.HTTPRoute{},
 		&gatewayv1.GRPCRoute{},
 		&gatewayv1.TLSRoute{},
-			&gatewayv1.TCPRoute{},
-			&gatewayv1.UDPRoute{},
+		&gatewayv1.TCPRoute{},
+		&gatewayv1.UDPRoute{},
 		&gatewayv1.ReferenceGrant{},
 		&gatewayv1.BackendTLSPolicy{},
 		&gatewayv1.ListenerSet{},
+		&corev1.Service{},
+		&discoveryv1.EndpointSlice{},
 	}
 
 	for i, descriptor := range descriptors {
@@ -280,6 +284,28 @@ func TestDescriptorProjectTo(t *testing.T) { //nolint:funlen // table-driven tes
 			validate: func(r *topology.GatewayAPIResources) {
 				g.Expect(r.ListenerSets).To(HaveLen(1))
 				g.Expect(r.ListenerSets[0].Name).To(Equal("ls-1"))
+			},
+		},
+		{
+			name: kindService,
+			idx:  10,
+			objects: []client.Object{
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: nameService1}},
+			},
+			validate: func(r *topology.GatewayAPIResources) {
+				g.Expect(r.Services).To(HaveLen(1))
+				g.Expect(r.Services[0].Name).To(Equal(nameService1))
+			},
+		},
+		{
+			name: "EndpointSlice",
+			idx:  11,
+			objects: []client.Object{
+				&discoveryv1.EndpointSlice{ObjectMeta: metav1.ObjectMeta{Namespace: "ns", Name: "eps-1"}},
+			},
+			validate: func(r *topology.GatewayAPIResources) {
+				g.Expect(r.EndpointSlices).To(HaveLen(1))
+				g.Expect(r.EndpointSlices[0].Name).To(Equal("eps-1"))
 			},
 		},
 	}
