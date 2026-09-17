@@ -143,3 +143,11 @@ export function relationshipStyle(scheme: ColorScheme = 'light') {
     },
   }
 }
+
+export function highlightRelationshipStroke(scheme: ColorScheme = 'light') {
+  return scheme === 'dark' ? 'rgba(140, 185, 245, 0.95)' : 'rgba(37, 99, 235, 0.95)'
+}
+
+export function dimmedRelationshipMarkerColor(scheme: ColorScheme = 'light') {
+  return scheme === 'dark' ? 'rgba(160, 160, 160, 0.35)' : 'rgba(177, 177, 183, 0.35)'
+}

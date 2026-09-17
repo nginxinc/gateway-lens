@@ -22,6 +22,7 @@ import {
   ReactFlow,
   Position,
   type Edge,
+  type EdgeMouseHandler,
   type Node,
   type NodeMouseHandler,
   type NodeProps,
@@ -53,6 +54,7 @@ import type {DashboardPayload} from './types'
 import {
   apiURL,
   applyCollapsing,
+  applyEdgeHover,
   applyFilters,
   buildGraph,
   buildSelectedResourceYAML,
@@ -164,6 +166,7 @@ export function App() {
   const [flowNodes, setFlowNodes] = useState<Node[]>([])
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])
   const [selectedKey, setSelectedKey] = useState(initialViewState.selectedKey)
+  const [hoveredKey, setHoveredKey] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
   // Color scheme: mode is the user's preference ('light' | 'dark' | 'system'),
@@ -180,6 +183,7 @@ export function App() {
 
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
   const lastFitOrientationRef = useRef(orientation)
+  const pendingOrientationFitRef = useRef(false)
 
   // Filter state
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(initialViewState.hiddenKinds)
@@ -260,22 +264,28 @@ export function App() {
     const orientationChanged = lastFitOrientationRef.current !== orientation
     lastFitOrientationRef.current = orientation
 
+    if (orientationChanged) {
+      pendingOrientationFitRef.current = true
+    }
+
     startTransition(() => {
       setSelectedKey(nextSelectedKey)
       setFlowNodes(graph.nodes)
       setFlowEdges(graph.edges)
     })
-
-    if (orientationChanged) {
-      // Wait a couple of frames so the new layout has actually been applied
-      // to the React Flow store before measuring bounds for fitView.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          void reactFlowInstanceRef.current?.fitView({duration: 300})
-        })
-      })
-    }
   }, [graphPayload, selectedKey, colorScheme, orientation])
+
+  useEffect(() => {
+    if (!pendingOrientationFitRef.current) return
+    pendingOrientationFitRef.current = false
+
+    void reactFlowInstanceRef.current?.fitView({duration: 300})
+  }, [flowNodes])
+
+  const displayedEdges = useMemo(
+    () => applyEdgeHover(flowEdges, hoveredKey, colorScheme),
+    [flowEdges, hoveredKey, colorScheme],
+  )
 
   useEffect(() => {
     applyColorScheme(colorScheme)
@@ -428,6 +438,23 @@ export function App() {
     })
   }, [])
 
+  const handleNodeMouseEnter: NodeMouseHandler = (_, node) => {
+    if (isNamespaceGroupNodeId(node.id)) return
+    setHoveredKey(node.id)
+  }
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredKey('')
+  }, [])
+
+  const handleEdgeMouseEnter: EdgeMouseHandler = (_, edge) => {
+    setHoveredKey(edge.id)
+  }
+
+  const handleEdgeMouseLeave = useCallback(() => {
+    setHoveredKey('')
+  }, [])
+
   return (
     <main className="app-shell">
       <section className="hero-panel">
@@ -571,7 +598,7 @@ export function App() {
               connectOnClick={false}
               edgesReconnectable={false}
               fitView
-              edges={flowEdges}
+              edges={displayedEdges}
               nodes={flowNodes}
               nodesConnectable={false}
               nodesDraggable={false}
@@ -579,7 +606,11 @@ export function App() {
               onInit={(instance) => {
                 reactFlowInstanceRef.current = instance
               }}
+              onEdgeMouseEnter={handleEdgeMouseEnter}
+              onEdgeMouseLeave={handleEdgeMouseLeave}
               onNodeClick={handleNodeClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
               onPaneClick={handlePaneClick}
               panOnScroll
               proOptions={{hideAttribution: true}}

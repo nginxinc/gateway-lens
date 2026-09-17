@@ -23,6 +23,7 @@ import type {GroupRect} from './graph'
 import {
   apiURL,
   applyCollapsing,
+  applyEdgeHover,
   applyFilters,
   applyNamespaceGrouping,
   buildGraph,
@@ -860,6 +861,85 @@ describe('buildGraph', () => {
       expect(child.position.y).toBeGreaterThanOrEqual(0)
       expect(parent.style?.width).toBeTypeOf('number')
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// applyEdgeHover
+// ---------------------------------------------------------------------------
+
+describe('applyEdgeHover', () => {
+  function buildTwoEdgeGraph() {
+    const gw = makeNode('Gateway', 'gw-1', 'default')
+    const routeA = makeNode('HTTPRoute', 'route-a', 'default')
+    const routeB = makeNode('HTTPRoute', 'route-b', 'default')
+    const edgeA = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-a', 'listener', 'default')
+    const edgeB = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-b', 'listener', 'default')
+    const snapshot = makePayload([gw, routeA, routeB], [edgeA, edgeB])
+    return buildGraph(snapshot, '', 'light')
+  }
+
+  it('returns the same array when no key is hovered', () => {
+    const graph = buildTwoEdgeGraph()
+    expect(applyEdgeHover(graph.edges, '')).toBe(graph.edges)
+  })
+
+  it('highlights edges connected to a hovered node and dims the rest', () => {
+    const graph = buildTwoEdgeGraph()
+    const gwKey = resourceKey(makeNode('Gateway', 'gw-1', 'default').ref)
+    const result = applyEdgeHover(graph.edges, gwKey, 'light')
+
+    // Both edges are connected to the hovered gateway, so both are highlighted.
+    for (const edge of result) {
+      expect(edge.zIndex).toBe(1)
+      expect(edge.style?.opacity).toBeUndefined()
+      expect(edge.labelStyle?.opacity).toBe(1)
+    }
+  })
+
+  it('dims edges not connected to the hovered node', () => {
+    const graph = buildTwoEdgeGraph()
+    const routeAKey = resourceKey(makeNode('HTTPRoute', 'route-a', 'default').ref)
+    const result = applyEdgeHover(graph.edges, routeAKey, 'light')
+
+    const connected = result.find((e) => e.target === routeAKey)!
+    const unconnected = result.find((e) => e.target !== routeAKey)!
+
+    expect(connected.zIndex).toBe(1)
+    expect(connected.labelStyle?.opacity).toBe(1)
+
+    expect(unconnected.zIndex).toBeUndefined()
+    expect(unconnected.style?.opacity).toBe(0.35)
+    expect(unconnected.labelStyle?.opacity).toBe(0.35)
+    expect(unconnected.labelBgStyle?.fillOpacity).toBe(0.35)
+  })
+
+  it('highlights a specific hovered edge by its own id', () => {
+    const graph = buildTwoEdgeGraph()
+    const targetEdgeId = graph.edges[0].id
+    const result = applyEdgeHover(graph.edges, targetEdgeId, 'light')
+
+    const highlighted = result.find((e) => e.id === targetEdgeId)!
+    const other = result.find((e) => e.id !== targetEdgeId)!
+
+    expect(highlighted.zIndex).toBe(1)
+    expect(other.zIndex).toBeUndefined()
+    expect(other.style?.opacity).toBe(0.35)
+  })
+
+  it('sets a distinct marker color for highlighted vs dimmed edges', () => {
+    const graph = buildTwoEdgeGraph()
+    const targetEdgeId = graph.edges[0].id
+    const result = applyEdgeHover(graph.edges, targetEdgeId, 'light')
+
+    const highlighted = result.find((e) => e.id === targetEdgeId)!
+    const other = result.find((e) => e.id !== targetEdgeId)!
+
+    const highlightedColor = (highlighted.markerEnd as {color?: string}).color
+    const otherColor = (other.markerEnd as {color?: string}).color
+    expect(highlightedColor).toBeTruthy()
+    expect(otherColor).toBeTruthy()
+    expect(highlightedColor).not.toBe(otherColor)
   })
 })
 
