@@ -24,7 +24,7 @@ import type {
   DashboardPayload,
   DashboardResourceRef,
 } from '../types'
-import {nodeColor, relationshipStyle} from './theme'
+import {dimmedRelationshipMarkerColor, highlightRelationshipStroke, nodeColor, relationshipStyle} from './theme'
 
 export const graphNodeWidth = 232
 export const graphNodeHeight = 122
@@ -287,8 +287,8 @@ export function buildGraph(
   graph.setGraph({
     marginx: 40,
     marginy: 40,
-    edgesep: 50,
-    nodesep: 100,
+    edgesep: 70,
+    nodesep: 130,
     rankdir: orientation,
     ranksep: 180,
   })
@@ -501,6 +501,40 @@ export function buildGraph(
   const nodes = applyNamespaceGrouping(resourceNodes, snapshot)
 
   return {edges, nodes}
+}
+
+export function applyEdgeHover(edges: Edge[], hoveredKey: string, colorScheme: ColorScheme = 'light'): Edge[] {
+  if (!hoveredKey) return edges
+
+  const highlightStroke = highlightRelationshipStroke(colorScheme)
+  const dimmedMarkerColor = dimmedRelationshipMarkerColor(colorScheme)
+
+  return edges.map((edge) => {
+    const isHighlighted = edge.id === hoveredKey || edge.source === hoveredKey || edge.target === hoveredKey
+
+    const baseLineStyle = edge.style ?? {}
+    const style = isHighlighted
+      ? {
+          ...baseLineStyle,
+          stroke: highlightStroke,
+          strokeWidth: (typeof baseLineStyle.strokeWidth === 'number' ? baseLineStyle.strokeWidth : 1.8) + 0.8,
+        }
+      : {...baseLineStyle, opacity: 0.35}
+
+    const markerEnd =
+      typeof edge.markerEnd === 'object' && edge.markerEnd
+        ? {...edge.markerEnd, color: isHighlighted ? highlightStroke : dimmedMarkerColor}
+        : edge.markerEnd
+
+    return {
+      ...edge,
+      labelBgStyle: {...edge.labelBgStyle, fillOpacity: isHighlighted ? 1 : 0.35},
+      labelStyle: {...edge.labelStyle, opacity: isHighlighted ? 1 : 0.35},
+      markerEnd,
+      style,
+      zIndex: isHighlighted ? 1 : undefined,
+    } satisfies Edge
+  })
 }
 
 // Padding inside namespace group boxes around child nodes.

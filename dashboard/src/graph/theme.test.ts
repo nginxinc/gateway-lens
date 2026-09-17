@@ -16,7 +16,7 @@ limitations under the License.
 
 import {describe, expect, it} from 'vitest'
 
-import {nodeColor, relationshipStyle} from './theme'
+import {dimmedRelationshipMarkerColor, highlightRelationshipStroke, nodeColor, relationshipStyle} from './theme'
 
 describe('nodeColor', () => {
   it('returns exact match for GatewayClass', () => {
@@ -124,5 +124,40 @@ describe('relationshipStyle', () => {
     const dark = relationshipStyle('dark')
     expect(dark.lineStyle.stroke).not.toBe(light.lineStyle.stroke)
     expect(dark.lineStyle.strokeWidth).toBe(light.lineStyle.strokeWidth)
+  })
+})
+
+describe('highlightRelationshipStroke', () => {
+  it('defaults to the light scheme when none is provided', () => {
+    expect(highlightRelationshipStroke()).toBe(highlightRelationshipStroke('light'))
+  })
+
+  it('returns a truthy color string for both schemes', () => {
+    expect(highlightRelationshipStroke('light')).toBeTruthy()
+    expect(highlightRelationshipStroke('dark')).toBeTruthy()
+  })
+
+  it('returns a distinct color for the dark scheme', () => {
+    expect(highlightRelationshipStroke('dark')).not.toBe(highlightRelationshipStroke('light'))
+  })
+})
+
+describe('dimmedRelationshipMarkerColor', () => {
+  it('defaults to the light scheme when none is provided', () => {
+    expect(dimmedRelationshipMarkerColor()).toBe(dimmedRelationshipMarkerColor('light'))
+  })
+
+  it('returns a truthy color string for both schemes', () => {
+    expect(dimmedRelationshipMarkerColor('light')).toBeTruthy()
+    expect(dimmedRelationshipMarkerColor('dark')).toBeTruthy()
+  })
+
+  it('returns a distinct color for the dark scheme', () => {
+    expect(dimmedRelationshipMarkerColor('dark')).not.toBe(dimmedRelationshipMarkerColor('light'))
+  })
+
+  it('is distinct from the highlight stroke color in both schemes', () => {
+    expect(dimmedRelationshipMarkerColor('light')).not.toBe(highlightRelationshipStroke('light'))
+    expect(dimmedRelationshipMarkerColor('dark')).not.toBe(highlightRelationshipStroke('dark'))
   })
 })
