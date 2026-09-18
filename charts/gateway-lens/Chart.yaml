@@ -2,8 +2,8 @@ apiVersion: v2
 name: gateway-lens
 description: A diagnostic dashboard for Kubernetes Gateway API resources.
 type: application
-version: 0.3.0
-appVersion: "0.3.0"
+version: 0.3.1
+appVersion: "0.3.1"
 home: https://github.com/nginxinc/gateway-lens
 sources:
   - https://github.com/nginxinc/gateway-lens
