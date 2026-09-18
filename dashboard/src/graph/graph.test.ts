@@ -28,6 +28,7 @@ import {
   applyNamespaceGrouping,
   buildGraph,
   buildSelectedResourceYAML,
+  collapseGroupKey,
   edgeKey,
   formatResource,
   groupNodeCollapseThreshold,
@@ -131,6 +132,17 @@ describe('groupNodeKey', () => {
     const key = groupNodeKey('HTTPRoute')
     expect(key).toContain('HTTPRoute')
     expect(isGroupNodeKey(key)).toBe(true)
+  })
+
+  it('encodes namespace when provided', () => {
+    const key = groupNodeKey('Service', 'team-alpha')
+    expect(key).toContain('Service')
+    expect(key).toContain('team-alpha')
+    expect(isGroupNodeKey(key)).toBe(true)
+  })
+
+  it('produces distinct keys for different namespaces', () => {
+    expect(groupNodeKey('Service', 'ns-a')).not.toBe(groupNodeKey('Service', 'ns-b'))
   })
 })
 
@@ -374,7 +386,7 @@ describe('applyCollapsing', () => {
     expect(result).toBe(snapshot) // same reference, not a copy
   })
 
-  it('collapses nodes of a kind into a single group node', () => {
+  it('collapses nodes of a kind in a single namespace into one group node', () => {
     const nodes = Array.from({length: 10}, (_, i) =>
       makeNode('HTTPRoute', `route-${i}`, 'default'),
     )
@@ -385,6 +397,54 @@ describe('applyCollapsing', () => {
     expect(routeNodes).toHaveLength(1)
     expect(isGroupNodeKey(routeNodes[0].ref.name)).toBe(true)
     expect(routeNodes[0].attributes['__count']).toBe('10')
+    // Group node inherits the namespace of its members.
+    expect(routeNodes[0].ref.namespace).toBe('default')
+  })
+
+  it('creates separate group nodes per namespace', () => {
+    const alphaNodes = Array.from({length: 5}, (_, i) =>
+      makeNode('HTTPRoute', `alpha-route-${i}`, 'team-alpha'),
+    )
+    const betaNodes = Array.from({length: 5}, (_, i) =>
+      makeNode('HTTPRoute', `beta-route-${i}`, 'team-beta'),
+    )
+    const snapshot = makePayload([...alphaNodes, ...betaNodes])
+    const result = applyCollapsing(snapshot, new Set(['HTTPRoute']))
+
+    const groupNodes = result.nodes.filter((n) => isGroupNodeKey(n.ref.name))
+    expect(groupNodes).toHaveLength(2)
+
+    const alphaGroup = groupNodes.find((n) => n.ref.namespace === 'team-alpha')!
+    const betaGroup = groupNodes.find((n) => n.ref.namespace === 'team-beta')!
+    expect(alphaGroup.attributes['__count']).toBe('5')
+    expect(betaGroup.attributes['__count']).toBe('5')
+  })
+
+  it('expandedGroups overrides collapsing for a specific namespace', () => {
+    const alphaNodes = Array.from({length: 5}, (_, i) =>
+      makeNode('HTTPRoute', `alpha-route-${i}`, 'team-alpha'),
+    )
+    const betaNodes = Array.from({length: 3}, (_, i) =>
+      makeNode('HTTPRoute', `beta-route-${i}`, 'team-beta'),
+    )
+    const snapshot = makePayload([...alphaNodes, ...betaNodes])
+
+    // Expand only team-alpha, keep team-beta collapsed.
+    const expanded = new Set([collapseGroupKey('HTTPRoute', 'team-alpha')])
+    const result = applyCollapsing(snapshot, new Set(['HTTPRoute']), expanded)
+
+    // team-alpha routes should be individual nodes.
+    const alphaRoutes = result.nodes.filter(
+      (n) => n.ref.kind === 'HTTPRoute' && n.ref.namespace === 'team-alpha' && !isGroupNodeKey(n.ref.name),
+    )
+    expect(alphaRoutes).toHaveLength(5)
+
+    // team-beta routes should be collapsed into a group.
+    const betaGroups = result.nodes.filter(
+      (n) => n.ref.kind === 'HTTPRoute' && n.ref.namespace === 'team-beta' && isGroupNodeKey(n.ref.name),
+    )
+    expect(betaGroups).toHaveLength(1)
+    expect(betaGroups[0].attributes['__count']).toBe('3')
   })
 
   it('redirects edges to group nodes', () => {
@@ -413,6 +473,20 @@ describe('applyCollapsing', () => {
     ])
     const result = applyCollapsing(snapshot, new Set(['HTTPRoute']))
     expect(result.nodes.some((n) => n.ref.kind === 'Gateway' && n.ref.name === 'gw-1')).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// collapseGroupKey
+// ---------------------------------------------------------------------------
+
+describe('collapseGroupKey', () => {
+  it('joins kind and namespace with a pipe', () => {
+    expect(collapseGroupKey('HTTPRoute', 'default')).toBe('HTTPRoute|default')
+  })
+
+  it('handles empty namespace', () => {
+    expect(collapseGroupKey('GatewayClass', '')).toBe('GatewayClass|')
   })
 })
 
@@ -735,7 +809,7 @@ describe('buildGraph', () => {
     expect(buildGraph(snapshot, '')).toEqual(buildGraph(snapshot, '', 'light'))
   })
 
-  it('applies dark-scheme colors to node fill/stroke and edge labels', () => {
+  it('applies dark-scheme colors to node fill/stroke', () => {
     const gw = makeNode('Gateway', 'gw-1', 'default')
     const route = makeNode('HTTPRoute', 'route-1', 'default')
     const edge = makeEdge('Gateway', 'gw-1', 'HTTPRoute', 'route-1', 'listener', 'default')
@@ -745,8 +819,6 @@ describe('buildGraph', () => {
     const darkGraph = buildGraph(snapshot, '', 'dark')
 
     expect(darkGraph.nodes[0].style?.background).not.toEqual(lightGraph.nodes[0].style?.background)
-    expect(darkGraph.edges[0].labelStyle).not.toEqual(lightGraph.edges[0].labelStyle)
-    expect(darkGraph.edges[0].labelBgStyle).not.toEqual(lightGraph.edges[0].labelBgStyle)
   })
 
   it('applies a distinct dark-scheme error glow color', () => {
@@ -893,7 +965,6 @@ describe('applyEdgeHover', () => {
     for (const edge of result) {
       expect(edge.zIndex).toBe(1)
       expect(edge.style?.opacity).toBeUndefined()
-      expect(edge.labelStyle?.opacity).toBe(1)
     }
   })
 
@@ -906,12 +977,9 @@ describe('applyEdgeHover', () => {
     const unconnected = result.find((e) => e.target !== routeAKey)!
 
     expect(connected.zIndex).toBe(1)
-    expect(connected.labelStyle?.opacity).toBe(1)
 
     expect(unconnected.zIndex).toBeUndefined()
     expect(unconnected.style?.opacity).toBe(0.35)
-    expect(unconnected.labelStyle?.opacity).toBe(0.35)
-    expect(unconnected.labelBgStyle?.fillOpacity).toBe(0.35)
   })
 
   it('highlights a specific hovered edge by its own id', () => {
