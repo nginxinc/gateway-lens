@@ -1418,7 +1418,7 @@ func TestTranslateGatewayAPIFlagsNonexistentBackendService(t *testing.T) {
 	g.Expect(serviceNode.Diagnostics).To(ContainElement(topology.Diagnostic{
 		Severity: topology.DiagnosticSeverityError,
 		Reason:   reasonServiceNotFound,
-		Message:  "The Service does not exist.",
+		Message:  msgServiceNotFound,
 	}))
 }
 
@@ -1450,6 +1450,338 @@ func TestTranslateGatewayAPIDoesNotFlagExistingBackendService(t *testing.T) {
 
 	for _, diagnostic := range serviceNode.Diagnostics {
 		g.Expect(diagnostic.Reason).NotTo(Equal(reasonServiceNotFound))
+	}
+}
+
+const reasonTargetNotFound = "TargetNotFound"
+
+func TestTranslateGatewayAPIFlagsNonexistentGateway(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					CommonRouteSpec: gatewayv1.CommonRouteSpec{
+						ParentRefs: []gatewayv1.ParentReference{
+							{Name: gatewayv1.ObjectName(nameEdge)},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	routeRef := topology.ResourceRef{
+		Group: gatewayv1.GroupName, Kind: kindHTTPRoute, Namespace: namespaceDefault, Name: nameRoute,
+	}
+	routeNode := findNodeByRef(snapshot.Nodes, routeRef)
+
+	g.Expect(routeNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonTargetNotFound,
+		Message:  "The Gateway does not exist.",
+	}))
+}
+
+func TestTranslateGatewayAPIDoesNotFlagExistingGateway(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	resources := topology.GatewayAPIResources{
+		Gateways: []gatewayv1.Gateway{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameEdge},
+				Spec: gatewayv1.GatewaySpec{
+					GatewayClassName: gatewayv1.ObjectName(gatewayClassName),
+				},
+			},
+		},
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+				Spec: gatewayv1.HTTPRouteSpec{
+					CommonRouteSpec: gatewayv1.CommonRouteSpec{
+						ParentRefs: []gatewayv1.ParentReference{
+							{Name: gatewayv1.ObjectName(nameEdge)},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	routeRef := topology.ResourceRef{
+		Group: gatewayv1.GroupName, Kind: kindHTTPRoute, Namespace: namespaceDefault, Name: nameRoute,
+	}
+	routeNode := findNodeByRef(snapshot.Nodes, routeRef)
+
+	for _, diagnostic := range routeNode.Diagnostics {
+		g.Expect(diagnostic.Reason).NotTo(Equal(reasonTargetNotFound))
+	}
+}
+
+func TestTranslateGatewayAPIFlagsPolicyTargetingNonexistentGateway(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const policyName = "my-policy"
+
+	resources := topology.GatewayAPIResources{
+		Policies: []topology.Policy{
+			{
+				Object: newTestPolicyUnstructured(
+					groupExampleIO, "v1", kindRateLimitPolicy,
+					policyName,
+				),
+				TargetRefs: []topology.PolicyTargetRef{
+					{
+						Group:     gatewayv1.GroupName,
+						Kind:      kindGateway,
+						Namespace: namespaceDefault,
+						Name:      nameEdge,
+					},
+				},
+				Type: topology.PolicyTypeDirect,
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	policyRef := topology.ResourceRef{
+		Group: groupExampleIO, Kind: kindRateLimitPolicy, Namespace: namespaceDefault, Name: policyName,
+	}
+	policyNode := findNodeByRef(snapshot.Nodes, policyRef)
+
+	g.Expect(policyNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonTargetNotFound,
+		Message:  "The Gateway does not exist.",
+	}))
+}
+
+func TestTranslateGatewayAPIDoesNotFlagPolicyTargetingExistingGateway(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const policyName = "my-policy"
+
+	resources := topology.GatewayAPIResources{
+		Gateways: []gatewayv1.Gateway{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameEdge},
+				Spec: gatewayv1.GatewaySpec{
+					GatewayClassName: gatewayv1.ObjectName(gatewayClassName),
+				},
+			},
+		},
+		Policies: []topology.Policy{
+			{
+				Object: newTestPolicyUnstructured(
+					groupExampleIO, "v1", kindRateLimitPolicy,
+					policyName,
+				),
+				TargetRefs: []topology.PolicyTargetRef{
+					{
+						Group:     gatewayv1.GroupName,
+						Kind:      kindGateway,
+						Namespace: namespaceDefault,
+						Name:      nameEdge,
+					},
+				},
+				Type: topology.PolicyTypeDirect,
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	policyRef := topology.ResourceRef{
+		Group: groupExampleIO, Kind: kindRateLimitPolicy, Namespace: namespaceDefault, Name: policyName,
+	}
+	policyNode := findNodeByRef(snapshot.Nodes, policyRef)
+
+	for _, diagnostic := range policyNode.Diagnostics {
+		g.Expect(diagnostic.Reason).NotTo(Equal(reasonTargetNotFound))
+	}
+}
+
+func TestTranslateGatewayAPIFlagsPolicyTargetingNonexistentHTTPRoute(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const policyName = "my-policy"
+
+	resources := topology.GatewayAPIResources{
+		Policies: []topology.Policy{
+			{
+				Object: newTestPolicyUnstructured(
+					groupExampleIO, "v1", kindRateLimitPolicy,
+					policyName,
+				),
+				TargetRefs: []topology.PolicyTargetRef{
+					{
+						Group:     gatewayv1.GroupName,
+						Kind:      kindHTTPRoute,
+						Namespace: namespaceDefault,
+						Name:      nameRoute,
+					},
+				},
+				Type: topology.PolicyTypeDirect,
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	policyRef := topology.ResourceRef{
+		Group: groupExampleIO, Kind: kindRateLimitPolicy, Namespace: namespaceDefault, Name: policyName,
+	}
+	policyNode := findNodeByRef(snapshot.Nodes, policyRef)
+
+	g.Expect(policyNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonTargetNotFound,
+		Message:  "The HTTPRoute does not exist.",
+	}))
+}
+
+func TestTranslateGatewayAPIDoesNotFlagPolicyTargetingExistingHTTPRoute(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const policyName = "my-policy"
+
+	resources := topology.GatewayAPIResources{
+		HTTPRoutes: []gatewayv1.HTTPRoute{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameRoute},
+			},
+		},
+		Policies: []topology.Policy{
+			{
+				Object: newTestPolicyUnstructured(
+					groupExampleIO, "v1", kindRateLimitPolicy,
+					policyName,
+				),
+				TargetRefs: []topology.PolicyTargetRef{
+					{
+						Group:     gatewayv1.GroupName,
+						Kind:      kindHTTPRoute,
+						Namespace: namespaceDefault,
+						Name:      nameRoute,
+					},
+				},
+				Type: topology.PolicyTypeDirect,
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	policyRef := topology.ResourceRef{
+		Group: groupExampleIO, Kind: kindRateLimitPolicy, Namespace: namespaceDefault, Name: policyName,
+	}
+	policyNode := findNodeByRef(snapshot.Nodes, policyRef)
+
+	for _, diagnostic := range policyNode.Diagnostics {
+		g.Expect(diagnostic.Reason).NotTo(Equal(reasonTargetNotFound))
+	}
+}
+
+func TestTranslateGatewayAPIFlagsPolicyTargetingNonexistentService(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const policyName = "my-policy"
+
+	resources := topology.GatewayAPIResources{
+		Policies: []topology.Policy{
+			{
+				Object: newTestPolicyUnstructured(
+					groupExampleIO, "v1", kindRateLimitPolicy,
+					policyName,
+				),
+				TargetRefs: []topology.PolicyTargetRef{
+					{
+						Kind:      kindService,
+						Namespace: namespaceDefault,
+						Name:      nameBackend,
+					},
+				},
+				Type: topology.PolicyTypeDirect,
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	policyRef := topology.ResourceRef{
+		Group: groupExampleIO, Kind: kindRateLimitPolicy, Namespace: namespaceDefault, Name: policyName,
+	}
+	policyNode := findNodeByRef(snapshot.Nodes, policyRef)
+
+	g.Expect(policyNode.Diagnostics).To(ContainElement(topology.Diagnostic{
+		Severity: topology.DiagnosticSeverityError,
+		Reason:   reasonTargetNotFound,
+		Message:  "The Service does not exist.",
+	}))
+}
+
+func TestTranslateGatewayAPIDoesNotFlagPolicyTargetingExistingService(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const policyName = "my-policy"
+
+	resources := topology.GatewayAPIResources{
+		Services: []corev1.Service{
+			{
+				ObjectMeta: metav1.ObjectMeta{Namespace: namespaceDefault, Name: nameBackend},
+			},
+		},
+		Policies: []topology.Policy{
+			{
+				Object: newTestPolicyUnstructured(
+					groupExampleIO, "v1", kindRateLimitPolicy,
+					policyName,
+				),
+				TargetRefs: []topology.PolicyTargetRef{
+					{
+						Kind:      kindService,
+						Namespace: namespaceDefault,
+						Name:      nameBackend,
+					},
+				},
+				Type: topology.PolicyTypeDirect,
+			},
+		},
+	}
+
+	snapshot := topology.TranslateGatewayAPI(resources)
+
+	policyRef := topology.ResourceRef{
+		Group: groupExampleIO, Kind: kindRateLimitPolicy, Namespace: namespaceDefault, Name: policyName,
+	}
+	policyNode := findNodeByRef(snapshot.Nodes, policyRef)
+
+	for _, diagnostic := range policyNode.Diagnostics {
+		g.Expect(diagnostic.Reason).NotTo(Equal(reasonTargetNotFound))
 	}
 }
 

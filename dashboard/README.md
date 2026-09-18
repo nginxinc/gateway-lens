@@ -18,7 +18,7 @@ automatically when `gateway-lens` starts.
 ## How It Works
 
 1. The dashboard connects to the Go backend's `/events` SSE endpoint and
-   fetches topology data from `/data` whenever the backend signals a change.
+   fetches topology data from `/api/data` whenever the backend signals a change.
 2. The response is a JSON payload containing **nodes** (Gateway API resources),
    **edges** (relationships between them), **conditions** (resource status), and
    **annotations** (policy metadata).
@@ -46,7 +46,7 @@ VITE_API_BASE_URL=http://localhost:8080 npm run dev
 This starts the Vite dev server with hot module replacement. Set
 `VITE_API_BASE_URL` to point at a running `gateway-lens` process so the
 dashboard can fetch live topology data. Without it, the dashboard will attempt
-to reach `/data` on its own origin.
+to reach `/api/data` on its own origin.
 
 ### Lint
 
@@ -78,7 +78,7 @@ commit the `dist` directory; it is generated during `make build`.
 
 ## Data Contract
 
-The dashboard expects the `/data` endpoint to return JSON matching the
+The dashboard expects the `/api/data` endpoint to return JSON matching the
 `DashboardPayload` type in [`src/types.ts`](src/types.ts):
 
 ```typescript
@@ -93,3 +93,26 @@ type DashboardPayload = {
 Each **node** carries a resource reference, key-value attributes, Gateway API
 conditions, and an optional YAML manifest. Each **edge** describes a
 directional relationship (e.g. `parentRef`, `gatewayClass`, `backendRef`).
+
+### Issues Endpoint
+
+The `/api/issues` endpoint returns detected problems across all resources:
+
+```json
+{
+  "generatedAt": "2025-01-01T00:00:00Z",
+  "issues": [
+    {
+      "resource": { "group": "gateway.networking.k8s.io", "kind": "HTTPRoute", "namespace": "default", "name": "my-route" },
+      "severity": "Error",
+      "reason": "GatewayNotFound",
+      "message": "The Gateway does not exist."
+    }
+  ]
+}
+```
+
+Issues are derived from two sources:
+- **Diagnostics**: gateway-lens-computed observations (e.g. missing Service, missing Gateway).
+- **Negative conditions**: Kubernetes status conditions where an important condition type
+  (`Accepted`, `Programmed`, or `ResolvedRefs`) has a status of `False`.

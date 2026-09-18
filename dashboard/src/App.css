@@ -484,7 +484,7 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-subtle);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -501,11 +501,11 @@
   border-radius: 999px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
-  padding: 5px 12px;
+  padding: 5px 13px;
   transition: all 0.15s ease;
 }
 
@@ -561,9 +561,9 @@
   border-bottom-right-radius: 999px;
   color: var(--color-accent-text);
   cursor: pointer;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   line-height: 1;
-  padding: 4px 8px 4px 5px;
+  padding: 4px 8px 4px 6px;
   transition: all 0.15s ease;
 }
 
@@ -586,8 +586,8 @@
   border-radius: 10px;
   color: var(--color-text);
   font-family: inherit;
-  font-size: 0.82rem;
-  padding: 6px 12px;
+  font-size: 0.88rem;
+  padding: 6px 13px;
   min-width: 140px;
 }
 
@@ -677,4 +677,153 @@
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* Issues bar */
+.issues-bar {
+  backdrop-filter: blur(18px);
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  box-shadow: 0 18px 40px var(--color-panel-shadow);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.issues-bar-toggle {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: inherit;
+  padding: 16px 20px;
+  width: 100%;
+}
+
+.issues-bar-toggle:hover {
+  background: var(--color-hairline-bg);
+}
+
+.issues-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.issues-bar-title {
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.issues-bar-count {
+  background: var(--color-alert-bg);
+  border: 1px solid var(--color-alert-border);
+  border-radius: 999px;
+  color: var(--color-alert-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 10px;
+}
+
+.issues-bar-chevron {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.issues-bar-body {
+  border-top: 1px solid var(--color-panel-border);
+  padding: 12px 20px 16px;
+}
+
+.issues-panel-empty {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  padding: 8px 4px;
+}
+
+.issues-list {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.issue-row {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.issue-row-button {
+  appearance: none;
+  background: var(--color-hairline-bg);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  font-family: inherit;
+  font-size: 0.82rem;
+  gap: 4px 12px;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  padding: 10px 14px;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  width: 100%;
+}
+
+.issue-row-button:hover {
+  border-color: var(--color-panel-border);
+  background: var(--color-panel-bg);
+}
+
+.issue-severity {
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 3px 8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.issue-severity--error {
+  background: var(--color-alert-bg);
+  border: 1px solid var(--color-alert-border);
+  color: var(--color-alert-text);
+}
+
+.issue-severity--info {
+  background: var(--color-accent-bg);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-text);
+}
+
+.issue-resource {
+  color: var(--color-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.issue-reason {
+  color: var(--color-text-subtle);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.issue-message {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  grid-column: 1 / -1;
+  overflow-wrap: break-word;
 }

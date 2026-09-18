@@ -17,6 +17,7 @@ limitations under the License.
 package topology
 
 import (
+	"fmt"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -45,8 +46,9 @@ const (
 	attributePolicyType      = "policyType"
 	attributeReadyEndpoints  = "readyEndpoints"
 	attributeTotalEndpoints  = "totalEndpoints"
-	reasonNoReadyEndpoints   = "NoReadyEndpoints"
-	reasonServiceNotFound    = "ServiceNotFound"
+	reasonNoReadyEndpoints = "NoReadyEndpoints"
+	reasonServiceNotFound  = "ServiceNotFound"
+	reasonTargetNotFound   = "TargetNotFound"
 )
 
 // TranslateGatewayAPI builds a base topology snapshot from typed Gateway API resources.
@@ -65,6 +67,7 @@ func TranslateGatewayAPI(resources GatewayAPIResources) Snapshot {
 	builder.addPolicyNodes(resources.Policies)
 	builder.addServiceReadinessNodes(resources.Services, resources.EndpointSlices)
 	builder.addMissingServiceConditions(resources.Services)
+	builder.addMissingTargetDiagnostics(resources)
 
 	return Snapshot{Nodes: builder.nodes, Edges: builder.edges}
 }
@@ -596,6 +599,84 @@ func serviceNotFoundDiagnostic() Diagnostic {
 		Severity: DiagnosticSeverityError,
 		Reason:   reasonServiceNotFound,
 		Message:  "The Service does not exist.",
+	}
+}
+
+// addMissingTargetDiagnostics flags nodes whose parentRef or policyTargetRef targets a resource
+// that does not exist, attaching an error diagnostic to the source node
+// (the Route or Policy that references the missing target).
+func (b *baseSnapshotBuilder) addMissingTargetDiagnostics(resources GatewayAPIResources) {
+	existing := collectExistingRefs(resources)
+
+	// Track which source nodes have already been flagged to avoid duplicate diagnostics
+	// when a resource references the same missing target via multiple refs.
+	flagged := make(map[ResourceRef]struct{})
+
+	for _, edge := range b.edges {
+		if edge.Type != EdgeTypeParentRef && edge.Type != EdgeTypePolicyTargetRef {
+			continue
+		}
+
+		if _, exists := existing[edge.To]; exists {
+			continue
+		}
+
+		if _, already := flagged[edge.From]; already {
+			continue
+		}
+
+		flagged[edge.From] = struct{}{}
+
+		b.appendNodeDiagnostics(edge.From, []Diagnostic{targetNotFoundDiagnostic(edge.To.Kind)})
+	}
+}
+
+// collectExistingRefs builds a set of ResourceRefs for every real resource in the input.
+func collectExistingRefs(resources GatewayAPIResources) map[ResourceRef]struct{} {
+	existing := make(map[ResourceRef]struct{})
+
+	addRef := func(group, kind, namespace, name string) {
+		existing[ResourceRef{Group: group, Kind: kind, Namespace: namespace, Name: name}] = struct{}{}
+	}
+
+	for _, gw := range resources.Gateways {
+		addRef(gatewayAPIGroup, defaultGatewayKind, gw.Namespace, gw.Name)
+	}
+
+	for _, svc := range resources.Services {
+		addRef("", defaultServiceKind, svc.Namespace, svc.Name)
+	}
+
+	for _, r := range resources.HTTPRoutes {
+		addRef(gatewayAPIGroup, "HTTPRoute", r.Namespace, r.Name)
+	}
+
+	for _, r := range resources.GRPCRoutes {
+		addRef(gatewayAPIGroup, "GRPCRoute", r.Namespace, r.Name)
+	}
+
+	for _, r := range resources.TLSRoutes {
+		addRef(gatewayAPIGroup, "TLSRoute", r.Namespace, r.Name)
+	}
+
+	for _, r := range resources.TCPRoutes {
+		addRef(gatewayAPIGroup, "TCPRoute", r.Namespace, r.Name)
+	}
+
+	for _, r := range resources.UDPRoutes {
+		addRef(gatewayAPIGroup, "UDPRoute", r.Namespace, r.Name)
+	}
+
+	return existing
+}
+
+// targetNotFoundDiagnostic builds the diagnostic applied to a node whose
+// parentRef or policyTargetRef targets a resource that does not exist.
+func targetNotFoundDiagnostic(kind string) Diagnostic {
+	return Diagnostic{
+		Severity: DiagnosticSeverityError,
+		Reason:   reasonTargetNotFound,
+		Message:  fmt.Sprintf("The %s does not exist.", kind),
 	}
 }
 

@@ -36,7 +36,27 @@ import (
 	"github.com/nginxinc/gateway-lens/internal/topology"
 )
 
-// dashboardPayload is the JSON response body served by the /data endpoint.
+// dashboardIssuesPayload is the JSON response body served by the /api/issues endpoint.
+type dashboardIssuesPayload struct {
+	// GeneratedAt is the RFC3339 timestamp when the payload was built.
+	GeneratedAt string `json:"generatedAt"`
+	// Issues are the detected problems in the topology.
+	Issues []dashboardIssueView `json:"issues"`
+}
+
+// dashboardIssueView is the JSON representation of a single detected issue.
+type dashboardIssueView struct {
+	// Resource identifies the Kubernetes resource where the issue was detected.
+	Resource dashboardResourceRefView `json:"resource"`
+	// Severity classifies how serious the issue is (e.g. "Error", "Info").
+	Severity string `json:"severity"`
+	// Reason is a machine-readable reason for the issue.
+	Reason string `json:"reason"`
+	// Message is a human-readable description of the issue.
+	Message string `json:"message"`
+}
+
+// dashboardPayload is the JSON response body served by the /api/data endpoint.
 type dashboardPayload struct {
 	// GeneratedAt is the RFC3339 timestamp when the payload was built.
 	GeneratedAt string `json:"generatedAt"`
@@ -146,27 +166,8 @@ func newDashboardHandler(reader liveResourcesReader, logger logr.Logger, basePat
 
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc(basePath+"/data", func(w http.ResponseWriter, r *http.Request) {
-		if !requireGET(w, r) {
-			return
-		}
-
-		resources := reader.Get()
-
-		payload, err := dashboardPayloadFromResources(resources)
-		if err != nil {
-			logger.Error(err, "Error building dashboard snapshot")
-			http.Error(w, fmt.Sprintf("Error building dashboard snapshot: %v", err), http.StatusInternalServerError)
-
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-
-		if err := json.NewEncoder(w).Encode(payload); err != nil {
-			logger.Error(err, "Error encoding dashboard snapshot")
-		}
-	})
+	mux.HandleFunc(basePath+"/api/data", serveJSON(reader, logger, dashboardPayloadFromResources))
+	mux.HandleFunc(basePath+"/api/issues", serveJSON(reader, logger, dashboardIssuesFromResources))
 	mux.HandleFunc(basePath+"/events", func(w http.ResponseWriter, r *http.Request) {
 		if !requireGET(w, r) {
 			return
@@ -194,6 +195,34 @@ func requireGET(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	return true
+}
+
+// serveJSON builds a GET-only JSON handler that reads resources from the reader,
+// transforms them with the given function, and encodes the result as JSON.
+func serveJSON[T any](
+	reader liveResourcesReader,
+	logger logr.Logger,
+	build func(topology.GatewayAPIResources) (T, error),
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireGET(w, r) {
+			return
+		}
+
+		payload, err := build(reader.Get())
+		if err != nil {
+			logger.Error(err, "Error building response")
+			http.Error(w, fmt.Sprintf("Error building response: %v", err), http.StatusInternalServerError)
+
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(payload); err != nil {
+			logger.Error(err, "Error encoding response")
+		}
+	}
 }
 
 // serveDashboardAsset serves a static file or falls back to index.html for SPA routing.
@@ -270,13 +299,48 @@ func serveSSE(w http.ResponseWriter, r *http.Request, reader liveResourcesReader
 	}
 }
 
+// buildSnapshot translates resources into a fully assembled topology snapshot.
+func buildSnapshot(resources topology.GatewayAPIResources) (topology.Snapshot, error) {
+	base := topology.TranslateGatewayAPI(resources)
+
+	snapshot, err := topology.NewSnapshotBuilder().Build(base, resources)
+	if err != nil {
+		return topology.Snapshot{}, fmt.Errorf("assembling topology snapshot: %w", err)
+	}
+
+	return snapshot, nil
+}
+
+// dashboardIssuesFromResources translates typed resources into an issues payload via the topology layer.
+func dashboardIssuesFromResources(resources topology.GatewayAPIResources) (dashboardIssuesPayload, error) {
+	snapshot, err := buildSnapshot(resources)
+	if err != nil {
+		return dashboardIssuesPayload{}, err
+	}
+
+	issues := snapshot.Issues()
+
+	views := make([]dashboardIssueView, len(issues))
+	for idx, issue := range issues {
+		views[idx] = dashboardIssueView{
+			Resource: newDashboardResourceRefView(issue.Resource),
+			Severity: string(issue.Severity),
+			Reason:   issue.Reason,
+			Message:  issue.Message,
+		}
+	}
+
+	return dashboardIssuesPayload{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Issues:      views,
+	}, nil
+}
+
 // dashboardPayloadFromResources translates typed resources into a dashboard payload via the topology layer.
 func dashboardPayloadFromResources(resources topology.GatewayAPIResources) (dashboardPayload, error) {
-	baseSnapshot := topology.TranslateGatewayAPI(resources)
-
-	snapshot, err := topology.NewSnapshotBuilder().Build(baseSnapshot, resources)
+	snapshot, err := buildSnapshot(resources)
 	if err != nil {
-		return dashboardPayload{}, fmt.Errorf("assembling topology snapshot: %w", err)
+		return dashboardPayload{}, err
 	}
 
 	return newDashboardPayload(snapshot, resources)
