@@ -25,6 +25,10 @@ export default defineConfig([
               'renderAttributes',
               'renderRelationships',
               'renderConditions', 'renderDiagnostics',
+              'formatIssueResource',
+              'severityRank',
+              'sortIssues',
+              'severityClass',
             ]
           }
         ],

@@ -114,17 +114,24 @@ directly.
 ## Raw JSON Data
 
 In addition to the interactive dashboard, Gateway Lens exposes the full
-topology snapshot as raw JSON at the `/data` endpoint. This is the same data
-the dashboard itself renders — nodes, edges, conditions, and annotations for
-every watched Gateway API resource — so it's useful for scripting, piping into
-`jq`, or feeding into your own tooling:
+topology snapshot as raw JSON at the `/api/data` endpoint. This is the same
+data the dashboard itself renders — nodes, edges, conditions, and annotations
+for every watched Gateway API resource — so it's useful for scripting, piping
+into `jq`, or feeding into your own tooling:
 
 ```sh
-curl http://localhost:8080/data | jq .
+curl http://localhost:8080/api/data | jq .
+```
+
+A separate `/api/issues` endpoint returns detected problems (negative
+conditions and diagnostics) across all resources:
+
+```sh
+curl http://localhost:8080/api/issues | jq .
 ```
 
 See [`dashboard/README.md`](dashboard/README.md#data-contract) for the full
-shape of the response.
+shape of both responses.
 
 ## Building From Source
 
@@ -158,12 +165,12 @@ make image
 
 The Go process uses **controller-runtime** to watch Gateway API resources and
 build a topology snapshot of nodes, edges, conditions, and annotations. A
-built-in HTTP server exposes this snapshot at `/data` and serves the compiled
-React dashboard at all other paths.
+built-in HTTP server exposes this snapshot at `/api/data`, detected issues at
+`/api/issues`, and serves the compiled React dashboard at all other paths.
 
 The [dashboard frontend](dashboard) is a React + TypeScript application
 built with Vite. It receives change notifications via Server-Sent Events and
-fetches `/data` on demand, rendering the topology using React Flow with
+fetches `/api/data` on demand, rendering the topology using React Flow with
 automatic dagre layout.
 
 ## Developer Commands

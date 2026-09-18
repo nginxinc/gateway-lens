@@ -62,3 +62,15 @@ export interface DashboardResourceRef {
   namespace?: string
   name: string
 }
+
+export interface DashboardIssuesPayload {
+  generatedAt: string
+  issues: DashboardIssue[]
+}
+
+export interface DashboardIssue {
+  resource: DashboardResourceRef
+  severity: string
+  reason: string
+  message: string
+}

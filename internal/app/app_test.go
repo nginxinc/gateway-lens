@@ -122,6 +122,7 @@ func TestHTTPServerRunnableStartsDashboard(t *testing.T) {
 
 	dashboardAddr := waitForDashboardReady(g, runnable)
 	assertDashboardDataEndpoint(ctx, g, dashboardAddr, "")
+	assertDashboardIssuesEndpoint(ctx, g, dashboardAddr, "")
 	assertDashboardPageEndpoint(ctx, t, g, dashboardAddr, "")
 
 	cancel()
@@ -141,7 +142,7 @@ func waitForDashboardReady(g Gomega, runnable *app.HTTPServerRunnable) string {
 }
 
 func assertDashboardDataEndpoint(ctx context.Context, g Gomega, dashboardAddr, basePath string) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+basePath+"/data", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+basePath+"/api/data", nil)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	response, err := http.DefaultClient.Do(request)
@@ -153,6 +154,22 @@ func assertDashboardDataEndpoint(ctx context.Context, g Gomega, dashboardAddr, b
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(response.StatusCode).To(Equal(http.StatusOK))
 	g.Expect(string(body)).To(ContainSubstring("HTTPRoute"))
+}
+
+func assertDashboardIssuesEndpoint(ctx context.Context, g Gomega, dashboardAddr, basePath string) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboardAddr+basePath+"/api/issues", nil)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	response, err := http.DefaultClient.Do(request)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	defer func() { _ = response.Body.Close() }()
+
+	body, err := io.ReadAll(response.Body)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(response.StatusCode).To(Equal(http.StatusOK))
+	g.Expect(string(body)).To(ContainSubstring("generatedAt"))
+	g.Expect(string(body)).To(ContainSubstring("issues"))
 }
 
 func assertDashboardPageEndpoint(ctx context.Context, t *testing.T, g Gomega, dashboardAddr, basePath string) {
@@ -193,6 +210,7 @@ func TestHTTPServerRunnableServesUnderBasePath(t *testing.T) {
 
 	dashboardAddr := waitForDashboardReady(g, runnable)
 	assertDashboardDataEndpoint(ctx, g, dashboardAddr, basePath)
+	assertDashboardIssuesEndpoint(ctx, g, dashboardAddr, basePath)
 	assertDashboardPageEndpoint(ctx, t, g, dashboardAddr, basePath)
 
 	// A request to the bare base path (no trailing slash) should be
@@ -373,7 +391,7 @@ func TestEndpointsRejectNonGETMethods(t *testing.T) {
 
 	dashboardAddr := waitForDashboardReady(g, runnable)
 
-	endpoints := []string{"/data", "/events", "/", "/healthz"}
+	endpoints := []string{"/api/data", "/api/issues", "/events", "/", "/healthz"}
 
 	for _, endpoint := range endpoints {
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, dashboardAddr+endpoint, nil)

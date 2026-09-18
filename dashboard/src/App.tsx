@@ -50,7 +50,7 @@ import {
   watchSystemColorScheme,
   type ColorSchemeMode,
 } from './state/colorScheme'
-import type {DashboardPayload} from './types'
+import type {DashboardIssue, DashboardIssuesPayload, DashboardPayload, DashboardResourceRef} from './types'
 import {
   apiURL,
   applyCollapsing,
@@ -81,6 +81,7 @@ import {
   renderDiagnostics,
   renderRelationships,
 } from './components/inspector'
+import {IssuesPanel} from './components/issues-panel'
 
 type ResourceNodeData = {
   displayName: string
@@ -168,6 +169,10 @@ export function App() {
   const [selectedKey, setSelectedKey] = useState(initialViewState.selectedKey)
   const [hoveredKey, setHoveredKey] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+
+  // Issues state.
+  const [issues, setIssues] = useState<DashboardIssue[]>([])
+  const [issuesOpen, setIssuesOpen] = useState(false)
 
   // Color scheme: mode is the user's preference ('light' | 'dark' | 'system'),
   // persisted across sessions. systemColorScheme tracks the live OS/browser
@@ -311,13 +316,21 @@ export function App() {
 
   const refreshSnapshot = useEffectEvent(async () => {
     try {
-      const response = await fetch(apiURL('/data'), {cache: 'no-store'})
-      if (!response.ok) {
-        throw new Error(`snapshot request failed with ${response.status}`)
+      const [dataResponse, issuesResponse] = await Promise.all([
+        fetch(apiURL('/api/data'), {cache: 'no-store'}),
+        fetch(apiURL('/api/issues'), {cache: 'no-store'}),
+      ])
+
+      if (!dataResponse.ok) {
+        throw new Error(`snapshot request failed with ${dataResponse.status}`)
       }
 
-      const rawPayload = (await response.json()) as DashboardPayload
+      const rawPayload = (await dataResponse.json()) as DashboardPayload
       const nextPayload = visibleGraphSnapshot(rawPayload)
+
+      const nextIssues = issuesResponse.ok
+        ? ((await issuesResponse.json()) as DashboardIssuesPayload).issues
+        : []
 
       // Auto-collapse kinds that exceed the threshold.
       const kindCounts = new Map<string, number>()
@@ -333,6 +346,7 @@ export function App() {
 
       startTransition(() => {
         setPayload(nextPayload)
+        setIssues(nextIssues)
         setCollapsedKinds((prev) => {
           // Merge: keep user's existing manual choices, add new auto-collapsed kinds.
           const merged = new Set(prev)
@@ -455,6 +469,12 @@ export function App() {
     setHoveredKey('')
   }, [])
 
+  const handleIssueSelect = useCallback((ref: DashboardResourceRef) => {
+    startTransition(() => {
+      setSelectedKey(resourceKey(ref))
+    })
+  }, [])
+
   return (
     <main className="app-shell">
       <section className="hero-panel">
@@ -500,6 +520,27 @@ export function App() {
           )
         })}
       </section>
+
+      {issues.length > 0 ? (
+        <section className="issues-bar" aria-label="Detected issues">
+          <button
+            className="issues-bar-toggle"
+            onClick={() => setIssuesOpen((prev) => !prev)}
+            type="button"
+          >
+            <span className="issues-bar-header">
+              <span className="issues-bar-title">Issues</span>
+              <span className="issues-bar-count">{issues.length}</span>
+            </span>
+            <span className="issues-bar-chevron">{issuesOpen ? '▾' : '▸'}</span>
+          </button>
+          {issuesOpen ? (
+            <div className="issues-bar-body">
+              <IssuesPanel issues={issues} onSelectResource={handleIssueSelect} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="filter-bar" aria-label="Graph filters">
         <div className="filter-group">
@@ -710,6 +751,7 @@ export function App() {
           )}
         </aside>
       </section>
+
     </main>
   )
 }
