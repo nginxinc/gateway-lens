@@ -56,15 +56,13 @@ const shadowColors = {
   dark: {ambient: 'rgba(0, 0, 0, 0.45)', elevated: 'rgba(0, 0, 0, 0.6)'},
 } satisfies Record<ColorScheme, {ambient: string; elevated: string}>
 
-const edgeLabelColors = {
-  light: {background: 'rgba(255, 250, 242, 0.92)', text: '#5f5b52'},
-  dark: {background: 'rgba(30, 32, 30, 0.92)', text: '#d8d3c8'},
-} satisfies Record<ColorScheme, {background: string; text: string}>
-
 const groupNodePrefix = '__group__'
 const namespaceGroupPrefix = '__ns__'
 
-export function groupNodeKey(kind: string) {
+export function groupNodeKey(kind: string, namespace?: string) {
+  if (namespace) {
+    return `${groupNodePrefix}${kind}__${namespace}`
+  }
   return `${groupNodePrefix}${kind}`
 }
 
@@ -158,30 +156,41 @@ export function applyFilters(
   return {...snapshot, nodes, edges, annotations}
 }
 
+export function collapseGroupKey(kind: string, namespace: string) {
+  return `${kind}|${namespace}`
+}
+
 export function applyCollapsing(
   snapshot: DashboardPayload,
   collapsedKinds: Set<string>,
+  expandedGroups: Set<string> = new Set(),
 ): DashboardPayload {
   if (collapsedKinds.size === 0) return snapshot
 
-  // Collect collapsed groups.
+  // Collect collapsed groups keyed by kind+namespace.
+  // A node is collapsed if its kind is in collapsedKinds AND its
+  // kind|namespace pair is NOT in expandedGroups.
   const groupedNodes = new Map<string, DashboardNode[]>()
   const keptNodes: DashboardNode[] = []
 
   for (const node of snapshot.nodes) {
-    if (collapsedKinds.has(node.ref.kind)) {
-      const list = groupedNodes.get(node.ref.kind) ?? []
+    const ns = node.ref.namespace ?? ''
+    if (collapsedKinds.has(node.ref.kind) && !expandedGroups.has(collapseGroupKey(node.ref.kind, ns))) {
+      const mapKey = `${node.ref.kind}|${ns}`
+      const list = groupedNodes.get(mapKey) ?? []
       list.push(node)
-      groupedNodes.set(node.ref.kind, list)
+      groupedNodes.set(mapKey, list)
     } else {
       keptNodes.push(node)
     }
   }
 
-  // Create synthetic group nodes for each collapsed kind.
-  for (const [kind, nodes] of groupedNodes) {
+  // Create synthetic group nodes for each collapsed kind+namespace pair.
+  for (const [, nodes] of groupedNodes) {
+    const kind = nodes[0].ref.kind
+    const ns = nodes[0].ref.namespace ?? ''
     keptNodes.push({
-      ref: {group: nodes[0].ref.group, kind, namespace: '', name: groupNodeKey(kind)},
+      ref: {group: nodes[0].ref.group, kind, namespace: ns || undefined, name: groupNodeKey(kind, ns || undefined)},
       attributes: {'__count': String(nodes.length)},
       conditions: [],
     })
@@ -189,8 +198,10 @@ export function applyCollapsing(
 
   // For collapsed kinds, redirect edges to/from any member to the group node.
   const collapsedNodeKeys = new Map<string, string>()
-  for (const [kind, nodes] of groupedNodes) {
-    const gKey = resourceKey({group: nodes[0].ref.group, kind, namespace: '', name: groupNodeKey(kind)})
+  for (const [, nodes] of groupedNodes) {
+    const kind = nodes[0].ref.kind
+    const ns = nodes[0].ref.namespace ?? ''
+    const gKey = resourceKey({group: nodes[0].ref.group, kind, namespace: ns || undefined, name: groupNodeKey(kind, ns || undefined)})
     for (const node of nodes) {
       collapsedNodeKeys.set(resourceKey(node.ref), gKey)
     }
@@ -240,6 +251,7 @@ type HandleSide = 'top' | 'bottom' | 'left' | 'right'
 
 export type GroupNodeData = {
   kind: string
+  namespace?: string
   count: number
   sourceBottomHandleCount: number
   sourceTopHandleCount: number
@@ -368,8 +380,6 @@ export function buildGraph(
     targetHandleMap.set(meta.index, `target-${meta.targetSide}-${handleIndex}`)
   }
 
-  const edgeLabelColor = edgeLabelColors[colorScheme]
-
   const edges = edgeMeta.map((meta) => {
     const {edge, index, visualEndpoints, sourceSide, targetSide} = meta
     const edgeStyle = relationshipStyle(colorScheme)
@@ -381,11 +391,6 @@ export function buildGraph(
     return {
       animated: edgeStyle.animated,
       id: `${edgeKey(edge)}:${index}`,
-      label: edge.detail || edge.type,
-      labelBgBorderRadius: 999,
-      labelBgPadding: [8, 4],
-      labelBgStyle: {fill: edgeLabelColor.background, fillOpacity: 1},
-      labelStyle: {fill: edgeLabelColor.text, fontSize: 11, fontWeight: 600},
       markerEnd: {type: MarkerType.ArrowClosed, width: 18, height: 18},
       source: visualEndpoints.source,
       sourceHandle,
@@ -413,6 +418,7 @@ export function buildGraph(
       return {
         data: {
           kind: node.ref.kind,
+          namespace: node.ref.namespace,
           count: groupCount,
           sourceBottomHandleCount: sourceHandleCounts.bottom.get(key) ?? 0,
           sourceTopHandleCount: sourceHandleCounts.top.get(key) ?? 0,
@@ -528,8 +534,6 @@ export function applyEdgeHover(edges: Edge[], hoveredKey: string, colorScheme: C
 
     return {
       ...edge,
-      labelBgStyle: {...edge.labelBgStyle, fillOpacity: isHighlighted ? 1 : 0.35},
-      labelStyle: {...edge.labelStyle, opacity: isHighlighted ? 1 : 0.35},
       markerEnd,
       style,
       zIndex: isHighlighted ? 1 : undefined,
