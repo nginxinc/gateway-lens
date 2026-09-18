@@ -7,7 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/name: gateway-lens
     app.kubernetes.io/instance: gateway-lens
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
 automountServiceAccountToken: false
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -17,7 +17,7 @@ metadata:
   labels:
     app.kubernetes.io/name: gateway-lens
     app.kubernetes.io/instance: gateway-lens
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
 rules:
   - apiGroups: ["gateway.networking.k8s.io"]
     resources:
@@ -52,7 +52,7 @@ metadata:
   labels:
     app.kubernetes.io/name: gateway-lens
     app.kubernetes.io/instance: gateway-lens
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
 subjects:
   - kind: ServiceAccount
     name: gateway-lens
@@ -70,7 +70,7 @@ metadata:
   labels:
     app.kubernetes.io/name: gateway-lens
     app.kubernetes.io/instance: gateway-lens
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
 spec:
   type: ClusterIP
   selector:
@@ -89,7 +89,7 @@ metadata:
   labels:
     app.kubernetes.io/name: gateway-lens
     app.kubernetes.io/instance: gateway-lens
-    app.kubernetes.io/version: "0.2.0"
+    app.kubernetes.io/version: "0.3.0"
 spec:
   replicas: 1
   selector:
@@ -106,7 +106,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: gateway-lens
-          image: "ghcr.io/nginxinc/gateway-lens:0.2.0"
+          image: "ghcr.io/nginxinc/gateway-lens:0.3.0"
           imagePullPolicy: IfNotPresent
           args:
             - --port=8080
