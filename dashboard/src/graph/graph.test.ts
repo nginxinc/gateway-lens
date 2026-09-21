@@ -16,6 +16,7 @@ limitations under the License.
 
 import {describe, expect, it, vi} from 'vitest'
 
+import dagre from 'dagre'
 import type {DashboardEdge, DashboardNode, DashboardPayload, DashboardResourceRef} from '../types'
 import type {Node} from '@xyflow/react'
 
@@ -31,6 +32,10 @@ import {
   collapseGroupKey,
   edgeKey,
   formatResource,
+  graphNodeHeight,
+  graphNodeWidth,
+  rankRowMaxColumns,
+  reflowWideRanks,
   groupNodeCollapseThreshold,
   groupNodeKey,
   isGroupNodeKey,
@@ -40,6 +45,7 @@ import {
   nodeHasNegativeCondition,
   resolveGroupOverlaps,
   resolveSelectedKey,
+  resolveUngroupedOverlaps,
   resourceKey,
   visibleGraphSnapshot,
 } from './graph'
@@ -1234,6 +1240,38 @@ describe('applyNamespaceGrouping', () => {
     const overlaps = overlapX > 0 && overlapY > 0
     expect(overlaps).toBe(false)
   })
+
+  it('pushes cluster-scoped nodes out of namespace boxes', () => {
+    const gc = makeNode('GatewayClass', 'gc-1') // no namespace — cluster-scoped
+    const gw = makeNode('Gateway', 'gw-1', 'ns-a')
+    const route = makeNode('HTTPRoute', 'route-1', 'ns-b')
+    const snapshot = makePayload([gc, gw, route])
+
+    // Place the GatewayClass inside what will become ns-a's bounding box.
+    const flowNodes = [
+      {id: resourceKey(gc.ref), position: {x: 50, y: 60}, data: {}, style: {width: 232}},
+      {id: resourceKey(gw.ref), position: {x: 50, y: 50}, data: {}, style: {width: 232}},
+      {id: resourceKey(route.ref), position: {x: 50, y: 400}, data: {}, style: {width: 232}},
+    ]
+
+    const result = applyNamespaceGrouping(flowNodes, snapshot)
+
+    const gcNode = result.find((n) => n.id === resourceKey(gc.ref))!
+    expect(gcNode.parentId).toBeUndefined() // still ungrouped
+
+    // The GatewayClass node should NOT overlap any namespace group box.
+    const nsGroups = result.filter((n) => isNamespaceGroupNodeId(n.id))
+    for (const nsGroup of nsGroups) {
+      const gw = nsGroup.style?.width as number
+      const gh = nsGroup.style?.height as number
+      const overlapX = Math.min(gcNode.position.x + graphNodeWidth, nsGroup.position.x + gw) -
+        Math.max(gcNode.position.x, nsGroup.position.x)
+      const overlapY = Math.min(gcNode.position.y + graphNodeHeight, nsGroup.position.y + gh) -
+        Math.max(gcNode.position.y, nsGroup.position.y)
+      const overlaps = overlapX > 0 && overlapY > 0
+      expect(overlaps).toBe(false)
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1323,5 +1361,196 @@ describe('resolveGroupOverlaps', () => {
     if (groupShiftedY) {
       expect(child.position.y).not.toBe(originalChildY)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// reflowWideRanks
+// ---------------------------------------------------------------------------
+
+describe('reflowWideRanks', () => {
+  function makeGraph(nodePositions: Record<string, {x: number; y: number}>) {
+    const graph = new dagre.graphlib.Graph()
+    graph.setDefaultEdgeLabel(() => ({}))
+    graph.setGraph({})
+    for (const [id, pos] of Object.entries(nodePositions)) {
+      graph.setNode(id, {x: pos.x, y: pos.y, width: graphNodeWidth, height: graphNodeHeight})
+    }
+    return graph
+  }
+
+  it('does nothing when all ranks have <= maxColumns nodes', () => {
+    // 3 nodes in one rank (TB), below default threshold of 5
+    const graph = makeGraph({
+      a: {x: 0, y: 100},
+      b: {x: 300, y: 100},
+      c: {x: 600, y: 100},
+    })
+    reflowWideRanks(graph, 'TB')
+    // Positions unchanged
+    expect(graph.node('a').x).toBe(0)
+    expect(graph.node('b').x).toBe(300)
+    expect(graph.node('c').x).toBe(600)
+    expect(graph.node('a').y).toBe(100)
+  })
+
+  it('wraps a wide rank into multiple rows (TB orientation)', () => {
+    // 7 nodes all at y=100 — should wrap into rows of rankRowMaxColumns
+    const positions: Record<string, {x: number; y: number}> = {}
+    for (let i = 0; i < 7; i++) {
+      positions[`n${i}`] = {x: i * 300, y: 100}
+    }
+    const graph = makeGraph(positions)
+    reflowWideRanks(graph, 'TB')
+
+    // First rankRowMaxColumns nodes in row 1, rest in row 2
+    const firstRowY = graph.node('n0').y
+    for (let i = 1; i < rankRowMaxColumns; i++) {
+      expect(graph.node(`n${i}`).y).toBe(firstRowY)
+    }
+    const secondRowY = graph.node(`n${rankRowMaxColumns}`).y
+    expect(secondRowY).toBeGreaterThan(firstRowY)
+    // All overflow nodes share the second row
+    for (let i = rankRowMaxColumns; i < 7; i++) {
+      expect(graph.node(`n${i}`).y).toBe(secondRowY)
+    }
+  })
+
+  it('shifts downstream ranks to accommodate extra rows', () => {
+    // Rank 1: 7 nodes at y=100 (will wrap)
+    // Rank 2: 1 node at y=400 (should be shifted down)
+    const positions: Record<string, {x: number; y: number}> = {}
+    for (let i = 0; i < 7; i++) {
+      positions[`r1_${i}`] = {x: i * 300, y: 100}
+    }
+    positions['r2_0'] = {x: 0, y: 400}
+    const graph = makeGraph(positions)
+
+    const originalR2Y = graph.node('r2_0').y
+    reflowWideRanks(graph, 'TB')
+
+    // Rank 2 should have been shifted down
+    expect(graph.node('r2_0').y).toBeGreaterThan(originalR2Y)
+  })
+
+  it('wraps a wide rank into multiple columns (LR orientation)', () => {
+    // 7 nodes all at x=100 — should wrap in LR mode (cross axis is y)
+    const positions: Record<string, {x: number; y: number}> = {}
+    for (let i = 0; i < 7; i++) {
+      positions[`n${i}`] = {x: 100, y: i * 300}
+    }
+    const graph = makeGraph(positions)
+    reflowWideRanks(graph, 'LR')
+
+    // First rankRowMaxColumns should share the same x, rest at a greater x
+    const firstColX = graph.node('n0').x
+    for (let i = 1; i < rankRowMaxColumns; i++) {
+      expect(graph.node(`n${i}`).x).toBe(firstColX)
+    }
+    expect(graph.node(`n${rankRowMaxColumns}`).x).toBeGreaterThan(firstColX)
+  })
+
+  it('respects a custom maxColumns value', () => {
+    // 4 nodes with maxColumns=2 → 2 rows
+    const positions: Record<string, {x: number; y: number}> = {}
+    for (let i = 0; i < 4; i++) {
+      positions[`n${i}`] = {x: i * 300, y: 100}
+    }
+    const graph = makeGraph(positions)
+    reflowWideRanks(graph, 'TB', 2)
+
+    const row0Y = graph.node('n0').y
+    const row1Y = graph.node('n2').y
+    expect(row1Y).toBeGreaterThan(row0Y)
+    expect(graph.node('n1').y).toBe(row0Y)
+    expect(graph.node('n3').y).toBe(row1Y)
+  })
+
+  it('centers the grid on the original cross-axis midpoint', () => {
+    // 6 nodes spread from x=100 to x=1600 at y=200
+    const positions: Record<string, {x: number; y: number}> = {}
+    for (let i = 0; i < 6; i++) {
+      positions[`n${i}`] = {x: 100 + i * 300, y: 200}
+    }
+    const graph = makeGraph(positions)
+
+    const originalCenter = (100 + 1600) / 2 // midpoint of min and max x
+    reflowWideRanks(graph, 'TB')
+
+    // The reflowed grid should be roughly centered on the original center
+    const xs = Array.from({length: 6}, (_, i) => graph.node(`n${i}`).x)
+    const reflowedCenter = (Math.min(...xs) + Math.max(...xs)) / 2
+    expect(Math.abs(reflowedCenter - originalCenter)).toBeLessThan(graphNodeWidth)
+  })
+
+  it('handles exactly maxColumns nodes without wrapping', () => {
+    const positions: Record<string, {x: number; y: number}> = {}
+    for (let i = 0; i < rankRowMaxColumns; i++) {
+      positions[`n${i}`] = {x: i * 300, y: 100}
+    }
+    const graph = makeGraph(positions)
+    reflowWideRanks(graph, 'TB')
+
+    // All should remain at the same y (no wrapping)
+    for (let i = 1; i < rankRowMaxColumns; i++) {
+      expect(graph.node(`n${i}`).y).toBe(graph.node('n0').y)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// resolveUngroupedOverlaps
+// ---------------------------------------------------------------------------
+
+describe('resolveUngroupedOverlaps', () => {
+  function makeRect(ns: string, x: number, y: number, width: number, height: number): GroupRect {
+    return {ns, x, y, width, height, children: []}
+  }
+
+  function nodeOverlapsRect(node: Node, rect: GroupRect) {
+    const nw = (node.style?.width as number) ?? graphNodeWidth
+    const nh = graphNodeHeight
+    const ox = Math.min(node.position.x + nw, rect.x + rect.width) - Math.max(node.position.x, rect.x)
+    const oy = Math.min(node.position.y + nh, rect.y + rect.height) - Math.max(node.position.y, rect.y)
+    return ox > 0 && oy > 0
+  }
+
+  it('does nothing when no overlaps exist', () => {
+    const node = {id: 'gc', position: {x: 0, y: 0}, data: {}, style: {width: 232}} as Node
+    const rects = [makeRect('ns-a', 500, 500, 300, 200)]
+    resolveUngroupedOverlaps([node], rects)
+    expect(node.position.x).toBe(0)
+    expect(node.position.y).toBe(0)
+  })
+
+  it('pushes node out of a single overlapping rect', () => {
+    const node = {id: 'gc', position: {x: 50, y: 50}, data: {}, style: {width: 232}} as Node
+    const rects = [makeRect('ns-a', 0, 0, 400, 300)]
+    resolveUngroupedOverlaps([node], rects)
+    expect(nodeOverlapsRect(node, rects[0])).toBe(false)
+  })
+
+  it('pushes node out of multiple overlapping rects', () => {
+    // Node is between two rects that are side by side
+    const node = {id: 'gc', position: {x: 200, y: 50}, data: {}, style: {width: 232}} as Node
+    const rects = [
+      makeRect('ns-a', 0, 0, 400, 300),
+      makeRect('ns-b', 0, 310, 400, 300),
+    ]
+    resolveUngroupedOverlaps([node], rects)
+    expect(nodeOverlapsRect(node, rects[0])).toBe(false)
+    expect(nodeOverlapsRect(node, rects[1])).toBe(false)
+  })
+
+  it('handles node pushed from one rect into another', () => {
+    // Two rects stacked vertically — pushing out of one could land in the other
+    const node = {id: 'gc', position: {x: 50, y: 150}, data: {}, style: {width: 232}} as Node
+    const rects = [
+      makeRect('ns-a', 0, 0, 400, 200),
+      makeRect('ns-b', 0, 200, 400, 200),
+    ]
+    resolveUngroupedOverlaps([node], rects)
+    expect(nodeOverlapsRect(node, rects[0])).toBe(false)
+    expect(nodeOverlapsRect(node, rects[1])).toBe(false)
   })
 })
