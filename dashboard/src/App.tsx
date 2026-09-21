@@ -528,38 +528,33 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <p className="eyebrow">Gateway API Dashboard</p>
-          <h1>Gateway Lens</h1>
-          <p className="lede">
-            Visualize your Gateway API topology.
-          </p>
+      <header className="top-bar">
+        <div className="top-bar-brand">
+          <h1 className="top-bar-title">Gateway Lens</h1>
+          <span className="top-bar-subtitle">Gateway API Dashboard</span>
         </div>
 
-        <div className="hero-controls">
-          <div aria-label="Color theme" className="theme-toggle-group" role="group">
-            <button
-              aria-pressed={colorScheme === 'light'}
-              className="theme-toggle-option"
-              onClick={() => setColorSchemeMode('light')}
-              title="Light theme"
-              type="button"
-            >
-              ☀️
-            </button>
-            <button
-              aria-pressed={colorScheme === 'dark'}
-              className="theme-toggle-option"
-              onClick={() => setColorSchemeMode('dark')}
-              title="Dark theme"
-              type="button"
-            >
-              🌙
-            </button>
-          </div>
+        <div aria-label="Color theme" className="theme-toggle-group" role="group">
+          <button
+            aria-pressed={colorScheme === 'light'}
+            className="theme-toggle-option"
+            onClick={() => setColorSchemeMode('light')}
+            title="Light theme"
+            type="button"
+          >
+            ☀️
+          </button>
+          <button
+            aria-pressed={colorScheme === 'dark'}
+            className="theme-toggle-option"
+            onClick={() => setColorSchemeMode('dark')}
+            title="Dark theme"
+            type="button"
+          >
+            🌙
+          </button>
         </div>
-      </section>
+      </header>
 
       <section className="summary-grid" aria-label="Gateway API resource counts">
         {buildSummaryCards(payload ?? undefined).map((card) => {
