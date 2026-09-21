@@ -194,6 +194,10 @@ export function App() {
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
   const lastFitOrientationRef = useRef(orientation)
   const pendingOrientationFitRef = useRef(false)
+  // Generation counter to discard stale fetch responses. When multiple SSE
+  // events fire in quick succession, earlier fetches can resolve after later
+  // ones; without this guard the graph would be overwritten with stale data.
+  const refreshGenerationRef = useRef(0)
 
   // Filter state
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(initialViewState.hiddenKinds)
@@ -321,11 +325,15 @@ export function App() {
   }, [orientation])
 
   const refreshSnapshot = useEffectEvent(async () => {
+    const generation = ++refreshGenerationRef.current
+
     try {
       const [dataResponse, issuesResponse] = await Promise.all([
         fetch(apiURL('/api/data'), {cache: 'no-store'}),
         fetch(apiURL('/api/issues'), {cache: 'no-store'}),
       ])
+
+      if (generation !== refreshGenerationRef.current) return
 
       if (!dataResponse.ok) {
         throw new Error(`snapshot request failed with ${dataResponse.status}`)
@@ -350,44 +358,26 @@ export function App() {
         }
       }
 
-      // Compute the set of kinds and namespaces present in the new data so we
-      // can prune stale filter state that would otherwise hide everything.
-      const validKinds = new Set(nextPayload.nodes.map((n) => n.ref.kind))
-      const validNamespaces = new Set(
-        nextPayload.nodes.map((n) => n.ref.namespace).filter(Boolean),
-      )
-
       startTransition(() => {
         setPayload(nextPayload)
         setIssues(nextIssues)
         setCollapsedKinds((prev) => {
-          // Merge: keep user's existing manual choices (if the kind still
-          // exists), add new auto-collapsed kinds.
-          const merged = new Set<string>()
-          for (const kind of prev) {
-            if (validKinds.has(kind)) merged.add(kind)
-          }
+          // Merge: keep user's existing manual choices, add new auto-collapsed kinds.
+          const merged = new Set(prev)
           for (const kind of autoCollapsed) {
             merged.add(kind)
           }
           return merged
         })
-        // Prune hiddenKinds to only kinds that still exist in the data.
-        setHiddenKinds((prev) => {
-          const pruned = new Set<string>()
-          for (const kind of prev) {
-            if (validKinds.has(kind)) pruned.add(kind)
-          }
-          return pruned.size === prev.size ? prev : pruned
-        })
-        // Reset namespace filter if it references a namespace that no longer exists.
-        setNamespaceFilter((prev) => (prev && !validNamespaces.has(prev) ? '' : prev))
         // Reset per-namespace expansions on data refresh so newly auto-collapsed
         // kinds don't have stale expansion overrides.
         setExpandedGroups(new Set())
         setErrorMessage('')
       })
     } catch (error) {
+      // Ignore errors from stale requests.
+      if (generation !== refreshGenerationRef.current) return
+
       const message = error instanceof Error ? error.message : String(error)
 
       startTransition(() => {
@@ -403,8 +393,13 @@ export function App() {
 
     const eventSource = new EventSource(apiURL('/events'))
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
     eventSource.addEventListener('changed', () => {
-      void refreshSnapshot()
+      if (debounceTimer !== null) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null
+        void refreshSnapshot()
+      }, 250)
     })
 
     eventSource.onopen = () => {
@@ -416,6 +411,7 @@ export function App() {
     }
 
     return () => {
+      if (debounceTimer !== null) clearTimeout(debounceTimer)
       eventSource.close()
     }
   }, [])

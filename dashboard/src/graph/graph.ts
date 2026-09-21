@@ -33,6 +33,90 @@ export const referenceGrantSummaryAttribute = 'ReferenceGrant Summary'
 export const serviceReadyEndpointsAttribute = 'readyEndpoints'
 export const serviceTotalEndpointsAttribute = 'totalEndpoints'
 
+export const rankRowMaxColumns = 4
+
+const reflowCrossGap = 40
+const reflowRankGap = 30
+
+// reflowWideRanks re-arranges ranks that have more than rankRowMaxColumns nodes
+// into a multi-row grid. It mutates the dagre graph node positions in-place and
+// shifts downstream ranks to accommodate the extra rows.
+export function reflowWideRanks(
+  graph: dagre.graphlib.Graph,
+  orientation: GraphOrientation,
+  maxColumns: number = rankRowMaxColumns,
+) {
+  const rKey = rankAxis(orientation)
+  const cKey = crossAxis(orientation)
+  const nodeWidth = graphNodeWidth
+  const nodeHeight = graphNodeHeight
+
+  // Group nodes by their rank-axis coordinate, using a tolerance to handle
+  // floating-point variations from dagre. Nodes within rankGroupTolerance
+  // pixels of each other on the rank axis are considered the same rank.
+  const rankGroupTolerance = 1
+
+  const nodeEntries: Array<{id: string; rankVal: number}> = []
+  for (const id of graph.nodes()) {
+    const pos = graph.node(id)
+    if (!pos) continue
+    nodeEntries.push({id, rankVal: pos[rKey]})
+  }
+  nodeEntries.sort((a, b) => a.rankVal - b.rankVal)
+
+  const sortedRanks: Array<[number, string[]]> = []
+  for (const entry of nodeEntries) {
+    const last = sortedRanks[sortedRanks.length - 1]
+    if (last && Math.abs(entry.rankVal - last[0]) <= rankGroupTolerance) {
+      last[1].push(entry.id)
+    } else {
+      sortedRanks.push([entry.rankVal, [entry.id]])
+    }
+  }
+
+  let cumulativeShift = 0
+
+  for (const [, nodeIds] of sortedRanks) {
+    if (cumulativeShift !== 0) {
+      for (const id of nodeIds) {
+        const pos = graph.node(id)
+        pos[rKey] = pos[rKey] + cumulativeShift
+      }
+    }
+
+    if (nodeIds.length <= maxColumns) continue
+
+    nodeIds.sort((a, b) => graph.node(a)[cKey] - graph.node(b)[cKey])
+
+    const cols = maxColumns
+    const rows = Math.ceil(nodeIds.length / cols)
+
+    const cellCross = (rKey === 'y' ? nodeWidth : nodeHeight) + reflowCrossGap
+    const cellRank = (rKey === 'y' ? nodeHeight : nodeWidth) + reflowRankGap
+
+    const positions = nodeIds.map((id) => graph.node(id))
+    const minCross = Math.min(...positions.map((p) => p[cKey]))
+    const maxCross = Math.max(...positions.map((p) => p[cKey]))
+    const crossCenter = (minCross + maxCross) / 2
+
+    const gridCrossWidth = cols * cellCross - reflowCrossGap
+    const gridCrossStart = crossCenter - gridCrossWidth / 2
+
+    const rankCenter = positions[0][rKey]
+
+    for (let i = 0; i < nodeIds.length; i++) {
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const pos = graph.node(nodeIds[i])
+      pos[cKey] = gridCrossStart + col * cellCross
+      pos[rKey] = rankCenter + row * cellRank
+    }
+
+    const extraRankSpace = (rows - 1) * cellRank
+    cumulativeShift += extraRankSpace
+  }
+}
+
 const selectionRingColor = 'rgba(37, 99, 235, 0.9)'
 const selectionGlowColor = 'rgba(37, 99, 235, 0.55)'
 
@@ -321,6 +405,7 @@ export function buildGraph(
   })
 
   dagre.layout(graph)
+  reflowWideRanks(graph, orientation)
 
   const rankKey = rankAxis(orientation)
   const crossKey = crossAxis(orientation)
@@ -620,6 +705,10 @@ export function applyNamespaceGrouping(
   // Resolve overlaps between namespace group boxes.
   resolveGroupOverlaps(groupRects)
 
+  // Push cluster-scoped (ungrouped) nodes out of namespace boxes so they
+  // never render inside a namespace container (e.g. GatewayClass).
+  resolveUngroupedOverlaps(ungrouped, groupRects)
+
   // Create parent nodes and reparent children using resolved positions.
   const parentNodes: Node[] = []
 
@@ -730,6 +819,61 @@ function shiftGroup(rect: GroupRect, dx: number, dy: number) {
     child.position = {
       x: child.position.x + dx,
       y: child.position.y + dy,
+    }
+  }
+}
+
+// resolveUngroupedOverlaps pushes cluster-scoped nodes (like GatewayClass)
+// out of namespace group boxes so they never visually appear inside one.
+// It iterates until no overlaps remain, because pushing a node out of one box
+// can land it inside another.
+export function resolveUngroupedOverlaps(ungrouped: Node[], rects: GroupRect[]) {
+  if (ungrouped.length === 0 || rects.length === 0) return
+
+  const maxIterations = ungrouped.length * rects.length * 2
+
+  for (const node of ungrouped) {
+    const nodeWidth = (node.style?.width as number) ?? graphNodeWidth
+    const nodeHeight = graphNodeHeight
+
+    for (let iter = 0; iter < maxIterations; iter++) {
+      let pushed = false
+
+      for (const rect of rects) {
+        const overlapX =
+          Math.min(node.position.x + nodeWidth, rect.x + rect.width) -
+          Math.max(node.position.x, rect.x)
+        const overlapY =
+          Math.min(node.position.y + nodeHeight, rect.y + rect.height) -
+          Math.max(node.position.y, rect.y)
+
+        if (overlapX <= 0 || overlapY <= 0) continue
+
+        // Push along the axis of least penetration.
+        if (overlapY <= overlapX) {
+          // Push above or below depending on which is closer.
+          const pushAbove = node.position.y < rect.y + rect.height / 2
+          node.position = {
+            x: node.position.x,
+            y: pushAbove
+              ? rect.y - nodeHeight - namespaceGroupGap
+              : rect.y + rect.height + namespaceGroupGap,
+          }
+        } else {
+          // Push left or right.
+          const pushLeft = node.position.x < rect.x + rect.width / 2
+          node.position = {
+            x: pushLeft
+              ? rect.x - nodeWidth - namespaceGroupGap
+              : rect.x + rect.width + namespaceGroupGap,
+            y: node.position.y,
+          }
+        }
+        pushed = true
+        break // restart rect loop from the beginning
+      }
+
+      if (!pushed) break
     }
   }
 }
