@@ -26,6 +26,7 @@ import {
   applyCollapsing,
   applyEdgeHover,
   applyFilters,
+  applyGatewayClassFilter,
   applyNamespaceGrouping,
   buildGraph,
   buildSelectedResourceYAML,
@@ -323,13 +324,13 @@ describe('applyFilters', () => {
   )
 
   it('returns everything when no filters applied', () => {
-    const result = applyFilters(snapshot, new Set(), '', '')
+    const result = applyFilters(snapshot, new Set(), new Set(), '')
     expect(result.nodes).toHaveLength(4)
     expect(result.edges).toHaveLength(1)
   })
 
   it('filters by hidden kinds', () => {
-    const result = applyFilters(snapshot, new Set(['HTTPRoute']), '', '')
+    const result = applyFilters(snapshot, new Set(['HTTPRoute']), new Set(), '')
     expect(result.nodes).toHaveLength(3)
     expect(result.nodes.every((n) => n.ref.kind !== 'HTTPRoute')).toBe(true)
     // Edge to HTTPRoute should be removed since one endpoint is gone
@@ -337,7 +338,7 @@ describe('applyFilters', () => {
   })
 
   it('filters by namespace', () => {
-    const result = applyFilters(snapshot, new Set(), 'ns-a', '')
+    const result = applyFilters(snapshot, new Set(), new Set(['ns-a']), '')
     const names = result.nodes.map((n) => n.ref.name)
     expect(names).toContain('gw-1')
     expect(names).toContain('route-1')
@@ -346,38 +347,136 @@ describe('applyFilters', () => {
     expect(names).not.toContain('gc-1')
   })
 
+  it('filters by multiple namespaces', () => {
+    const result = applyFilters(snapshot, new Set(), new Set(['ns-a', 'ns-b']), '')
+    const names = result.nodes.map((n) => n.ref.name)
+    expect(names).toContain('gw-1')
+    expect(names).toContain('gw-2')
+    expect(names).toContain('route-1')
+    // GatewayClass has no namespace, filtered out even with multiple namespaces selected
+    expect(names).not.toContain('gc-1')
+  })
+
   it('filters by search string (case-insensitive)', () => {
-    const result = applyFilters(snapshot, new Set(), '', 'ROUTE')
+    const result = applyFilters(snapshot, new Set(), new Set(), 'ROUTE')
     expect(result.nodes).toHaveLength(1)
     expect(result.nodes[0].ref.name).toBe('route-1')
   })
 
   it('filters by search string matching namespace', () => {
-    const result = applyFilters(snapshot, new Set(), '', 'ns-b')
+    const result = applyFilters(snapshot, new Set(), new Set(), 'ns-b')
     expect(result.nodes).toHaveLength(1)
     expect(result.nodes[0].ref.name).toBe('gw-2')
   })
 
   it('does not match search strings against kind', () => {
-    const result = applyFilters(snapshot, new Set(), '', 'gatewayclass')
+    const result = applyFilters(snapshot, new Set(), new Set(), 'gatewayclass')
     expect(result.nodes).toHaveLength(0)
   })
 
   it('filters by "namespace/name" syntax', () => {
-    const result = applyFilters(snapshot, new Set(), '', 'ns-a/gw-1')
+    const result = applyFilters(snapshot, new Set(), new Set(), 'ns-a/gw-1')
     expect(result.nodes).toHaveLength(1)
     expect(result.nodes[0].ref.name).toBe('gw-1')
   })
 
   it('filters annotations along with nodes', () => {
-    const result = applyFilters(snapshot, new Set(['Gateway']), '', '')
+    const result = applyFilters(snapshot, new Set(['Gateway']), new Set(), '')
     expect(result.annotations).toHaveLength(0)
   })
 
   it('combines filters', () => {
-    const result = applyFilters(snapshot, new Set(['GatewayClass']), 'ns-a', 'gw')
+    const result = applyFilters(snapshot, new Set(['GatewayClass']), new Set(['ns-a']), 'gw')
     expect(result.nodes).toHaveLength(1)
     expect(result.nodes[0].ref.name).toBe('gw-1')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// applyGatewayClassFilter
+// ---------------------------------------------------------------------------
+
+describe('applyGatewayClassFilter', () => {
+  // Two independent GatewayClass "trees" sharing nothing:
+  // gc-a -> gw-a -> route-a -> svc-a, with a BackendTLSPolicy targeting svc-a
+  // gc-b -> gw-b -> route-b -> svc-b
+  // Plus an unrelated/orphan ReferenceGrant not connected to either tree.
+  const snapshot = makePayload(
+    [
+      makeNode('GatewayClass', 'gc-a'),
+      makeNode('GatewayClass', 'gc-b'),
+      makeNode('Gateway', 'gw-a', 'ns-a'),
+      makeNode('Gateway', 'gw-b', 'ns-b'),
+      makeNode('HTTPRoute', 'route-a', 'ns-a'),
+      makeNode('HTTPRoute', 'route-b', 'ns-b'),
+      makeNode('Service', 'svc-a', 'ns-a'),
+      makeNode('Service', 'svc-b', 'ns-b'),
+      makeNode('BackendTLSPolicy', 'policy-a', 'ns-a'),
+      makeNode('ReferenceGrant', 'grant-orphan', 'ns-c'),
+    ],
+    [
+      {from: makeRef('Gateway', 'gw-a', 'ns-a'), to: makeRef('GatewayClass', 'gc-a'), type: 'relationship', detail: 'gatewayClass'},
+      {from: makeRef('Gateway', 'gw-b', 'ns-b'), to: makeRef('GatewayClass', 'gc-b'), type: 'relationship', detail: 'gatewayClass'},
+      {from: makeRef('HTTPRoute', 'route-a', 'ns-a'), to: makeRef('Gateway', 'gw-a', 'ns-a'), type: 'relationship', detail: 'parentRef'},
+      {from: makeRef('HTTPRoute', 'route-b', 'ns-b'), to: makeRef('Gateway', 'gw-b', 'ns-b'), type: 'relationship', detail: 'parentRef'},
+      {from: makeRef('HTTPRoute', 'route-a', 'ns-a'), to: makeRef('Service', 'svc-a', 'ns-a'), type: 'relationship', detail: 'backendRef'},
+      {from: makeRef('HTTPRoute', 'route-b', 'ns-b'), to: makeRef('Service', 'svc-b', 'ns-b'), type: 'relationship', detail: 'backendRef'},
+      {from: makeRef('BackendTLSPolicy', 'policy-a', 'ns-a'), to: makeRef('Service', 'svc-a', 'ns-a'), type: 'relationship', detail: 'targetRef'},
+    ],
+    [{ref: makeRef('Gateway', 'gw-a', 'ns-a'), source: 'test', key: 'k', value: 'v'}],
+  )
+
+  it('returns the snapshot unchanged when no GatewayClass is selected', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set())
+    expect(result).toBe(snapshot)
+  })
+
+  it('includes the selected GatewayClass and all reachable descendants', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set(['gc-a']))
+    const names = result.nodes.map((n) => n.ref.name).sort()
+    expect(names).toEqual(['gc-a', 'gw-a', 'policy-a', 'route-a', 'svc-a'])
+  })
+
+  it('excludes nodes belonging to a different GatewayClass tree', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set(['gc-a']))
+    const names = result.nodes.map((n) => n.ref.name)
+    expect(names).not.toContain('gc-b')
+    expect(names).not.toContain('gw-b')
+    expect(names).not.toContain('route-b')
+    expect(names).not.toContain('svc-b')
+  })
+
+  it('excludes unrelated/orphan nodes not connected to the tree', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set(['gc-a']))
+    expect(result.nodes.map((n) => n.ref.name)).not.toContain('grant-orphan')
+  })
+
+  it('filters edges to only those within the selected tree', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set(['gc-a']))
+    // gw-a->gc-a, route-a->gw-a, route-a->svc-a, policy-a->svc-a
+    expect(result.edges).toHaveLength(4)
+  })
+
+  it('filters annotations to only nodes within the selected tree', () => {
+    const resultA = applyGatewayClassFilter(snapshot, new Set(['gc-a']))
+    expect(resultA.annotations).toHaveLength(1)
+
+    const resultB = applyGatewayClassFilter(snapshot, new Set(['gc-b']))
+    expect(resultB.annotations).toHaveLength(0)
+  })
+
+  it('returns an empty snapshot when the named GatewayClass does not exist', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set(['does-not-exist']))
+    expect(result.nodes).toHaveLength(0)
+    expect(result.edges).toHaveLength(0)
+    expect(result.annotations).toHaveLength(0)
+  })
+
+  it('unions the reachable trees when multiple GatewayClasses are selected', () => {
+    const result = applyGatewayClassFilter(snapshot, new Set(['gc-a', 'gc-b']))
+    const names = result.nodes.map((n) => n.ref.name).sort()
+    expect(names).toEqual(['gc-a', 'gc-b', 'gw-a', 'gw-b', 'policy-a', 'route-a', 'route-b', 'svc-a', 'svc-b'])
+    expect(names).not.toContain('grant-orphan')
   })
 })
 

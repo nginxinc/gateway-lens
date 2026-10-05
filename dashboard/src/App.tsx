@@ -56,6 +56,7 @@ import {
   applyCollapsing,
   applyEdgeHover,
   applyFilters,
+  applyGatewayClassFilter,
   buildGraph,
   buildSelectedResourceYAML,
   collapseGroupKey,
@@ -83,6 +84,7 @@ import {
   renderRelationships,
 } from './components/inspector'
 import {IssuesPanel} from './components/issues-panel'
+import {CheckboxDropdown} from './components/checkbox-dropdown'
 
 type ResourceNodeData = {
   displayName: string
@@ -201,8 +203,9 @@ export function App() {
 
   // Filter state
   const [hiddenKinds, setHiddenKinds] = useState<Set<string>>(initialViewState.hiddenKinds)
-  const [namespaceFilter, setNamespaceFilter] = useState(initialViewState.namespaceFilter)
+  const [namespaceFilter, setNamespaceFilter] = useState<Set<string>>(initialViewState.namespaceFilter)
   const [searchFilter, setSearchFilter] = useState(initialViewState.searchFilter)
+  const [gatewayClassFilter, setGatewayClassFilter] = useState<Set<string>>(initialViewState.gatewayClassFilter)
   const [collapsedKinds, setCollapsedKinds] = useState<Set<string>>(new Set())
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
@@ -227,6 +230,17 @@ export function App() {
     return [...namespaces].sort()
   }, [payload])
 
+  const allGatewayClasses = useMemo(() => {
+    if (!payload) return []
+    const gatewayClasses = new Set<string>()
+    for (const node of payload.nodes) {
+      if (node.ref.kind === 'GatewayClass') {
+        gatewayClasses.add(node.ref.name)
+      }
+    }
+    return [...gatewayClasses].sort()
+  }, [payload])
+
   // Kinds with enough nodes to be collapsible.
   const collapsibleKinds = useMemo(() => {
     if (!payload) return new Set<string>()
@@ -245,8 +259,9 @@ export function App() {
   const graphPayload = useMemo(() => {
     if (!payload) return null
     const filtered = applyFilters(payload, hiddenKinds, namespaceFilter, searchFilter)
-    return applyCollapsing(filtered, collapsedKinds, expandedGroups)
-  }, [payload, hiddenKinds, namespaceFilter, searchFilter, collapsedKinds, expandedGroups])
+    const scoped = applyGatewayClassFilter(filtered, gatewayClassFilter)
+    return applyCollapsing(scoped, collapsedKinds, expandedGroups)
+  }, [payload, hiddenKinds, namespaceFilter, searchFilter, gatewayClassFilter, collapsedKinds, expandedGroups])
 
   const deferredSelectedKey = useDeferredValue(selectedKey)
   const selectedNode = deferredSelectedKey
@@ -317,8 +332,8 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    writeViewStateToURL({hiddenKinds, namespaceFilter, searchFilter, selectedKey})
-  }, [hiddenKinds, namespaceFilter, searchFilter, selectedKey])
+    writeViewStateToURL({hiddenKinds, namespaceFilter, searchFilter, gatewayClassFilter, selectedKey})
+  }, [hiddenKinds, namespaceFilter, searchFilter, gatewayClassFilter, selectedKey])
 
   useEffect(() => {
     storeGraphOrientation(orientation)
@@ -434,6 +449,30 @@ export function App() {
 
   const showAllKinds = useCallback(() => {
     setHiddenKinds(new Set())
+  }, [])
+
+  const toggleNamespaceFilter = useCallback((namespace: string) => {
+    setNamespaceFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(namespace)) {
+        next.delete(namespace)
+      } else {
+        next.add(namespace)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleGatewayClassFilter = useCallback((gatewayClass: string) => {
+    setGatewayClassFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(gatewayClass)) {
+        next.delete(gatewayClass)
+      } else {
+        next.add(gatewayClass)
+      }
+      return next
+    })
   }, [])
 
   const collapseAllOfKind = useCallback((kind: string) => {
@@ -660,20 +699,24 @@ export function App() {
           </div>
         </div>
         {allNamespaces.length > 1 ? (
-          <div className="filter-group">
-            <label className="filter-label" htmlFor="ns-filter">Namespace</label>
-            <select
-              className="filter-select"
-              id="ns-filter"
-              onChange={(e) => setNamespaceFilter(e.target.value)}
-              value={namespaceFilter}
-            >
-              <option value="">All namespaces</option>
-              {allNamespaces.map((ns) => (
-                <option key={ns} value={ns}>{ns}</option>
-              ))}
-            </select>
-          </div>
+          <CheckboxDropdown
+            allLabel="All"
+            id="ns-filter"
+            label="Namespace"
+            onToggle={toggleNamespaceFilter}
+            options={allNamespaces}
+            selected={namespaceFilter}
+          />
+        ) : null}
+        {allGatewayClasses.length > 1 ? (
+          <CheckboxDropdown
+            allLabel="All"
+            id="gateway-class-filter"
+            label="GatewayClass"
+            onToggle={toggleGatewayClassFilter}
+            options={allGatewayClasses}
+            selected={gatewayClassFilter}
+          />
         ) : null}
         <div className="filter-group">
           <label className="filter-label" htmlFor="search-filter">Search</label>

@@ -25,7 +25,13 @@ import {
 } from './urlState'
 
 function emptyState(): ViewState {
-  return {hiddenKinds: new Set(), namespaceFilter: '', searchFilter: '', selectedKey: ''}
+  return {
+    hiddenKinds: new Set(),
+    namespaceFilter: new Set(),
+    searchFilter: '',
+    gatewayClassFilter: new Set(),
+    selectedKey: '',
+  }
 }
 
 describe('encodeViewState', () => {
@@ -46,8 +52,9 @@ describe('encodeViewState', () => {
   it('encodes namespace, search, and selection filters', () => {
     const params = encodeViewState({
       hiddenKinds: new Set(),
-      namespaceFilter: 'default',
+      namespaceFilter: new Set(['default']),
       searchFilter: 'my-gateway',
+      gatewayClassFilter: new Set(),
       selectedKey: 'gateway.networking.k8s.io|Gateway|default|my-gateway',
     })
     expect(params.get('ns')).toBe('default')
@@ -55,9 +62,25 @@ describe('encodeViewState', () => {
     expect(params.get('selected')).toBe('gateway.networking.k8s.io|Gateway|default|my-gateway')
   })
 
+  it('encodes multiple namespaces as a sorted comma-joined list', () => {
+    const params = encodeViewState({...emptyState(), namespaceFilter: new Set(['prod', 'default'])})
+    expect(params.get('ns')).toBe('default,prod')
+  })
+
+  it('encodes the GatewayClass filter', () => {
+    const params = encodeViewState({...emptyState(), gatewayClassFilter: new Set(['nginx'])})
+    expect(params.get('gc')).toBe('nginx')
+  })
+
+  it('encodes multiple GatewayClasses as a sorted comma-joined list', () => {
+    const params = encodeViewState({...emptyState(), gatewayClassFilter: new Set(['nginx', 'envoy'])})
+    expect(params.get('gc')).toBe('envoy,nginx')
+  })
+
   it('omits empty fields entirely rather than encoding them as empty strings', () => {
-    const params = encodeViewState({...emptyState(), namespaceFilter: 'default'})
+    const params = encodeViewState({...emptyState(), namespaceFilter: new Set(['default'])})
     expect(params.has('q')).toBe(false)
+    expect(params.has('gc')).toBe(false)
     expect(params.has('selected')).toBe(false)
     expect(params.has('hiddenKinds')).toBe(false)
   })
@@ -80,17 +103,44 @@ describe('decodeViewState', () => {
 
   it('parses namespace, search, and selection filters', () => {
     const state = decodeViewState(new URLSearchParams('ns=default&q=my-gateway&selected=foo'))
-    expect(state.namespaceFilter).toBe('default')
+    expect(state.namespaceFilter).toEqual(new Set(['default']))
     expect(state.searchFilter).toBe('my-gateway')
     expect(state.selectedKey).toBe('foo')
+  })
+
+  it('parses multiple namespaces into a Set', () => {
+    const state = decodeViewState(new URLSearchParams('ns=default,prod'))
+    expect(state.namespaceFilter).toEqual(new Set(['default', 'prod']))
+  })
+
+  it('parses the GatewayClass filter', () => {
+    const state = decodeViewState(new URLSearchParams('gc=nginx'))
+    expect(state.gatewayClassFilter).toEqual(new Set(['nginx']))
+  })
+
+  it('parses multiple GatewayClasses into a Set', () => {
+    const state = decodeViewState(new URLSearchParams('gc=nginx,envoy'))
+    expect(state.gatewayClassFilter).toEqual(new Set(['nginx', 'envoy']))
   })
 
   it('round-trips through encodeViewState', () => {
     const original: ViewState = {
       hiddenKinds: new Set(['Gateway']),
-      namespaceFilter: 'default',
+      namespaceFilter: new Set(['default']),
       searchFilter: 'demo',
+      gatewayClassFilter: new Set(['nginx']),
       selectedKey: 'group|Gateway|default|demo',
+    }
+    expect(decodeViewState(encodeViewState(original))).toEqual(original)
+  })
+
+  it('round-trips multiple namespaces and GatewayClasses', () => {
+    const original: ViewState = {
+      hiddenKinds: new Set(),
+      namespaceFilter: new Set(['default', 'prod']),
+      searchFilter: '',
+      gatewayClassFilter: new Set(['nginx', 'envoy']),
+      selectedKey: '',
     }
     expect(decodeViewState(encodeViewState(original))).toEqual(original)
   })
@@ -108,15 +158,16 @@ describe('loadViewStateFromLocation / writeViewStateToURL', () => {
   it('writes the view state into the URL and reads it back', () => {
     const state: ViewState = {
       hiddenKinds: new Set(['Gateway']),
-      namespaceFilter: 'default',
+      namespaceFilter: new Set(['default']),
       searchFilter: 'demo',
+      gatewayClassFilter: new Set(['nginx']),
       selectedKey: 'group|Gateway|default|demo',
     }
 
     writeViewStateToURL(state)
 
     expect(window.location.search).toBe(
-      '?hiddenKinds=Gateway&ns=default&q=demo&selected=group%7CGateway%7Cdefault%7Cdemo',
+      '?hiddenKinds=Gateway&ns=default&q=demo&gc=nginx&selected=group%7CGateway%7Cdefault%7Cdemo',
     )
     expect(loadViewStateFromLocation()).toEqual(state)
   })
@@ -124,8 +175,9 @@ describe('loadViewStateFromLocation / writeViewStateToURL', () => {
   it('clears the query string when writing the empty state', () => {
     writeViewStateToURL({
       hiddenKinds: new Set(['Gateway']),
-      namespaceFilter: 'default',
+      namespaceFilter: new Set(['default']),
       searchFilter: '',
+      gatewayClassFilter: new Set(),
       selectedKey: '',
     })
     writeViewStateToURL(emptyState())
@@ -135,8 +187,8 @@ describe('loadViewStateFromLocation / writeViewStateToURL', () => {
 
   it('uses replaceState rather than pushState (no new history entry)', () => {
     const initialLength = window.history.length
-    writeViewStateToURL({...emptyState(), namespaceFilter: 'default'})
-    writeViewStateToURL({...emptyState(), namespaceFilter: 'other'})
+    writeViewStateToURL({...emptyState(), namespaceFilter: new Set(['default'])})
+    writeViewStateToURL({...emptyState(), namespaceFilter: new Set(['other'])})
     expect(window.history.length).toBe(initialLength)
   })
 })
