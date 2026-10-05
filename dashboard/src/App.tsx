@@ -19,6 +19,7 @@ import {
   ControlButton,
   Controls,
   Handle,
+  Panel,
   ReactFlow,
   Position,
   type Edge,
@@ -194,8 +195,11 @@ export function App() {
   const [orientation, setOrientation] = useState<GraphOrientation>(() => loadStoredGraphOrientation())
 
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
+  const flowShellRef = useRef<HTMLDivElement | null>(null)
   const lastFitOrientationRef = useRef(orientation)
   const pendingOrientationFitRef = useRef(false)
+  const fullscreenResizePendingRef = useRef(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   // Generation counter to discard stale fetch responses. When multiple SSE
   // events fire in quick succession, earlier fetches can resolve after later
   // ones; without this guard the graph would be overwritten with stale data.
@@ -338,6 +342,47 @@ export function App() {
   useEffect(() => {
     storeGraphOrientation(orientation)
   }, [orientation])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === flowShellRef.current)
+      fullscreenResizePendingRef.current = true
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    const shell = flowShellRef.current
+    if (!shell) return
+
+    const observer = new ResizeObserver(() => {
+      if (!fullscreenResizePendingRef.current) return
+      fullscreenResizePendingRef.current = false
+      const padding = document.fullscreenElement === flowShellRef.current ? 0.75 : undefined
+      void reactFlowInstanceRef.current?.fitView({duration: 300, padding})
+    })
+
+    observer.observe(shell)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!flowShellRef.current) return
+
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+    } else {
+      void flowShellRef.current.requestFullscreen()
+    }
+  }, [])
 
   const refreshSnapshot = useEffectEvent(async () => {
     const generation = ++refreshGenerationRef.current
@@ -745,7 +790,7 @@ export function App() {
             </div>
           </div>
 
-          <div className="flow-shell">
+          <div className="flow-shell" ref={flowShellRef}>
             <ReactFlow
               connectOnClick={false}
               edgesReconnectable={false}
@@ -788,6 +833,17 @@ export function App() {
                   <DownArrowIcon />
                 </ControlButton>
               </Controls>
+              <Panel position="bottom-right">
+                <button
+                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  className="fullscreen-toggle"
+                  onClick={toggleFullscreen}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  type="button"
+                >
+                  {isFullscreen ? <ExitFullscreenIcon /> : <EnterFullscreenIcon />}
+                </button>
+              </Panel>
             </ReactFlow>
           </div>
 
@@ -879,6 +935,28 @@ function DownArrowIcon() {
   return (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path d="M10 2h4v12h4l-6 8-6-8h4z" />
+    </svg>
+  )
+}
+
+function EnterFullscreenIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <line x1="21" x2="14" y1="3" y2="10" />
+      <line x1="3" x2="10" y1="21" y2="14" />
+    </svg>
+  )
+}
+
+function ExitFullscreenIcon() {
+  return (
+    <svg fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="4 14 10 14 10 20" />
+      <polyline points="20 10 14 10 14 4" />
+      <line x1="14" x2="21" y1="10" y2="3" />
+      <line x1="3" x2="10" y1="21" y2="14" />
     </svg>
   )
 }
