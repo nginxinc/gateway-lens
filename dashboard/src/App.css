@@ -176,6 +176,37 @@
   background: var(--color-flow-shell-bg);
 }
 
+.flow-shell:fullscreen,
+.flow-shell:-webkit-full-screen {
+  height: 100vh;
+  border-radius: 0;
+}
+
+.fullscreen-toggle {
+  appearance: none;
+  align-items: center;
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-panel-border);
+  border-radius: 10px;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  width: 30px;
+}
+
+.fullscreen-toggle:hover {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-text);
+}
+
+.fullscreen-toggle svg {
+  height: 16px;
+  width: 16px;
+}
+
 .resource-yaml-panel {
   display: grid;
   gap: 10px;
