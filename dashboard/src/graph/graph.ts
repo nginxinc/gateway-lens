@@ -219,12 +219,12 @@ export function matchesSearch(ref: DashboardResourceRef, searchFilter: string): 
 export function applyFilters(
   snapshot: DashboardPayload,
   hiddenKinds: Set<string>,
-  namespaceFilter: string,
+  namespaceFilter: Set<string>,
   searchFilter: string,
 ): DashboardPayload {
   const nodes = snapshot.nodes.filter((node) => {
     if (hiddenKinds.has(node.ref.kind)) return false
-    if (namespaceFilter && node.ref.namespace !== namespaceFilter) return false
+    if (namespaceFilter.size > 0 && !namespaceFilter.has(node.ref.namespace ?? '')) return false
     if (!matchesSearch(node.ref, searchFilter)) return false
     return true
   })
@@ -236,6 +236,53 @@ export function applyFilters(
   const annotations = (snapshot.annotations ?? []).filter((a) =>
     nodeKeys.has(resourceKey(a.ref)),
   )
+
+  return {...snapshot, nodes, edges, annotations}
+}
+
+export function applyGatewayClassFilter(
+  snapshot: DashboardPayload,
+  gatewayClassFilter: Set<string>,
+): DashboardPayload {
+  if (gatewayClassFilter.size === 0) return snapshot
+
+  const startNodes = snapshot.nodes.filter(
+    (node) => node.ref.kind === 'GatewayClass' && gatewayClassFilter.has(node.ref.name),
+  )
+  if (startNodes.length === 0) {
+    return {...snapshot, nodes: [], edges: [], annotations: []}
+  }
+
+  const adjacency = new Map<string, string[]>()
+  for (const edge of snapshot.edges) {
+    const fromKey = resourceKey(edge.from)
+    const toKey = resourceKey(edge.to)
+    ;(adjacency.get(fromKey) ?? adjacency.set(fromKey, []).get(fromKey)!).push(toKey)
+    ;(adjacency.get(toKey) ?? adjacency.set(toKey, []).get(toKey)!).push(fromKey)
+  }
+
+  const reachable = new Set<string>()
+  const queue: string[] = []
+  for (const startNode of startNodes) {
+    const startKey = resourceKey(startNode.ref)
+    if (reachable.has(startKey)) continue
+    reachable.add(startKey)
+    queue.push(startKey)
+  }
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    for (const neighbor of adjacency.get(current) ?? []) {
+      if (reachable.has(neighbor)) continue
+      reachable.add(neighbor)
+      queue.push(neighbor)
+    }
+  }
+
+  const nodes = snapshot.nodes.filter((node) => reachable.has(resourceKey(node.ref)))
+  const edges = snapshot.edges.filter(
+    (edge) => reachable.has(resourceKey(edge.from)) && reachable.has(resourceKey(edge.to)),
+  )
+  const annotations = (snapshot.annotations ?? []).filter((a) => reachable.has(resourceKey(a.ref)))
 
   return {...snapshot, nodes, edges, annotations}
 }

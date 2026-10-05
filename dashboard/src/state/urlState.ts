@@ -19,20 +19,40 @@ limitations under the License.
 // can be shared that reproduces exactly what the sender was looking at.
 export interface ViewState {
   hiddenKinds: Set<string>
-  namespaceFilter: string
+  namespaceFilter: Set<string>
   searchFilter: string
+  gatewayClassFilter: Set<string>
   selectedKey: string
 }
 
 const hiddenKindsParamName = 'hiddenKinds'
 const namespaceParamName = 'ns'
 const searchParamName = 'q'
+const gatewayClassParamName = 'gc'
 const selectedParamName = 'selected'
 
 // emptyViewState is returned whenever there's no window/URL to read from
 // (e.g. during server-side rendering or in a non-DOM test context).
 function emptyViewState(): ViewState {
-  return {hiddenKinds: new Set(), namespaceFilter: '', searchFilter: '', selectedKey: ''}
+  return {
+    hiddenKinds: new Set(),
+    namespaceFilter: new Set(),
+    searchFilter: '',
+    gatewayClassFilter: new Set(),
+    selectedKey: '',
+  }
+}
+
+// encodeStringSet turns a Set into a sorted, comma-joined string suitable
+// for a single URL query parameter.
+function encodeStringSet(values: Set<string>): string {
+  return [...values].sort().join(',')
+}
+
+// decodeStringSet parses a comma-joined query parameter back into a Set,
+// ignoring blank entries.
+function decodeStringSet(raw: string | null): Set<string> {
+  return new Set(raw ? raw.split(',').map((value) => value.trim()).filter((value) => value !== '') : [])
 }
 
 // encodeViewState turns a ViewState into URLSearchParams, omitting any
@@ -42,13 +62,16 @@ export function encodeViewState(state: ViewState): URLSearchParams {
   const params = new URLSearchParams()
 
   if (state.hiddenKinds.size > 0) {
-    params.set(hiddenKindsParamName, [...state.hiddenKinds].sort().join(','))
+    params.set(hiddenKindsParamName, encodeStringSet(state.hiddenKinds))
   }
-  if (state.namespaceFilter) {
-    params.set(namespaceParamName, state.namespaceFilter)
+  if (state.namespaceFilter.size > 0) {
+    params.set(namespaceParamName, encodeStringSet(state.namespaceFilter))
   }
   if (state.searchFilter) {
     params.set(searchParamName, state.searchFilter)
+  }
+  if (state.gatewayClassFilter.size > 0) {
+    params.set(gatewayClassParamName, encodeStringSet(state.gatewayClassFilter))
   }
   if (state.selectedKey) {
     params.set(selectedParamName, state.selectedKey)
@@ -60,17 +83,11 @@ export function encodeViewState(state: ViewState): URLSearchParams {
 // decodeViewState parses URLSearchParams back into a ViewState, defaulting
 // any missing field to its empty value.
 export function decodeViewState(params: URLSearchParams): ViewState {
-  const rawHiddenKinds = params.get(hiddenKindsParamName)
-  const hiddenKinds = new Set(
-    rawHiddenKinds
-      ? rawHiddenKinds.split(',').map((kind) => kind.trim()).filter((kind) => kind !== '')
-      : [],
-  )
-
   return {
-    hiddenKinds,
-    namespaceFilter: params.get(namespaceParamName) ?? '',
+    hiddenKinds: decodeStringSet(params.get(hiddenKindsParamName)),
+    namespaceFilter: decodeStringSet(params.get(namespaceParamName)),
     searchFilter: params.get(searchParamName) ?? '',
+    gatewayClassFilter: decodeStringSet(params.get(gatewayClassParamName)),
     selectedKey: params.get(selectedParamName) ?? '',
   }
 }
