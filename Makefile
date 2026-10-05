@@ -1,7 +1,7 @@
 # renovate: datasource=github-tags depName=golangci/golangci-lint
 GOLANGCI_LINT_VERSION ?= v2.14.0
 # renovate: datasource=github-tags depName=norwoodj/helm-docs
-HELM_DOCS_VERSION ?= v1.14.2
+HELM_DOCS_VERSION ?= 19.0614
 # renovate: datasource=github-tags depName=dadav/helm-schema
 HELM_SCHEMA_VERSION ?= 0.23.5
 # renovate: datasource=docker depName=helmunittest/helm-unittest
