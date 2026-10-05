@@ -17,6 +17,16 @@
       "description": "Group all GitHub Actions updates into a single PR",
       "matchManagers": ["github-actions"],
       "groupName": "github actions"
+    },
+    {
+      "description": "Use lock file maintenance for in-range npm updates instead of individual PRs",
+      "matchManagers": ["npm"],
+      "rangeStrategy": "update-lockfile"
+    },
+    {
+      "description": "Only match well-known semantic version tags",
+      "matchDatasources": ["github-tags"],
+      "allowedVersions": "/^v?\\d+\\.\\d+\\.\\d+$/"
     }
   ],
   "customManagers": [
