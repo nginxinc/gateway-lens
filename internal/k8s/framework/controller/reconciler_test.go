@@ -19,6 +19,7 @@ package controller_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -144,7 +145,7 @@ func TestReconcileDeleteNotFound(t *testing.T) {
 
 	getter := &fakeReader{
 		getFunc: func(context.Context, types.NamespacedName, client.Object, ...client.GetOption) error {
-			return notFoundErr
+			return fmt.Errorf("not found: %w", notFoundErr)
 		},
 	}
 
