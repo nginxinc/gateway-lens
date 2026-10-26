@@ -3,7 +3,7 @@ GOLANGCI_LINT_VERSION ?= v2.14.0
 # renovate: datasource=github-tags depName=norwoodj/helm-docs
 HELM_DOCS_VERSION ?= v1.14.2
 # renovate: datasource=github-tags depName=dadav/helm-schema
-HELM_SCHEMA_VERSION ?= 0.23.5
+HELM_SCHEMA_VERSION ?= 0.24.0
 # renovate: datasource=docker depName=helmunittest/helm-unittest
 HELM_UNITTEST_IMAGE ?= helmunittest/helm-unittest:4.2.3-1.1.2
 VERSION ?= dev
