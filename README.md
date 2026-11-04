@@ -1,4 +1,4 @@
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/nginxinc/gateway-lens/badge)](https://securityscorecards.dev/viewer/?uri=github.com/nginxinc/gateway-lens)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/nginx/gateway-lens/badge)](https://securityscorecards.dev/viewer/?uri=github.com/nginx/gateway-lens)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](/SUPPORT.md)
 [![Community Forum](https://img.shields.io/badge/community-forum-009639?logo=discourse&link=https%3A%2F%2Fcommunity.nginx.org)](https://community.nginx.org)
@@ -25,7 +25,7 @@ locally against a kubeconfig, or installing it into the cluster as a Pod.
 - A **kubeconfig** pointing at a cluster with Gateway API v1.6+ CRDs installed
 
 Download the latest binary for your platform from the
-[Releases page](https://github.com/nginxinc/gateway-lens/releases/latest),
+[Releases page](https://github.com/nginx/gateway-lens/releases/latest),
 then run it:
 
 ```sh
@@ -65,7 +65,7 @@ kubectl apply -f deploy/manifests-nginx-gateway-fabric.yaml
 Provided in [`charts/gateway-lens`](charts/gateway-lens):
 
 ```sh
-helm install gateway-lens oci://ghcr.io/nginxinc/charts/gateway-lens
+helm install gateway-lens oci://ghcr.io/nginx/charts/gateway-lens
 ```
 
 If your cluster's Gateway API implementation defines its own extension CRDs,
@@ -73,7 +73,7 @@ set `rbac.providers` to its name so the chart's `ClusterRole` covers them
 too, e.g. for [NGINX Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric):
 
 ```sh
-helm install gateway-lens oci://ghcr.io/nginxinc/charts/gateway-lens --set rbac.providers={nginx-gateway-fabric}
+helm install gateway-lens oci://ghcr.io/nginx/charts/gateway-lens --set rbac.providers={nginx-gateway-fabric}
 ```
 
 See [`charts/gateway-lens/README.md`](charts/gateway-lens/README.md#providers)

@@ -17,7 +17,7 @@ limitations under the License.
 package app
 
 import (
-	"github.com/nginxinc/gateway-lens/internal/topology"
+	"github.com/nginx/gateway-lens/internal/topology"
 )
 
 // liveResourcesReader provides read access to the latest synchronized Gateway API resources.

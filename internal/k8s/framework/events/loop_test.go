@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nginxinc/gateway-lens/internal/k8s/framework/events"
+	"github.com/nginx/gateway-lens/internal/k8s/framework/events"
 	. "github.com/onsi/gomega"
 
 	"github.com/go-logr/logr"

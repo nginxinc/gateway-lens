@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/nginxinc/gateway-lens/internal/topology"
+	"github.com/nginx/gateway-lens/internal/topology"
 )
 
 const gatewayClassName = "edge-class"

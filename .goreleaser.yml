@@ -49,7 +49,7 @@ dockers_v2:
   - ids:
       - gateway-lens
     images:
-      - ghcr.io/nginxinc/gateway-lens
+      - ghcr.io/nginx/gateway-lens
     tags:
       - "{{ .Version }}"
       - "{{ if not .IsSnapshot }}latest{{ end }}"

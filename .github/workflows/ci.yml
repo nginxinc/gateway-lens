@@ -275,4 +275,4 @@ jobs:
       - name: Package and Push Chart
         run: |
           helm package charts/gateway-lens
-          helm push gateway-lens-*.tgz oci://ghcr.io/nginxinc/charts
+          helm push gateway-lens-*.tgz oci://ghcr.io/nginx/charts

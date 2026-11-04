@@ -32,8 +32,8 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/nginxinc/gateway-lens/internal/app/dashboardui"
-	"github.com/nginxinc/gateway-lens/internal/topology"
+	"github.com/nginx/gateway-lens/internal/app/dashboardui"
+	"github.com/nginx/gateway-lens/internal/topology"
 )
 
 // dashboardIssuesPayload is the JSON response body served by the /api/issues endpoint.

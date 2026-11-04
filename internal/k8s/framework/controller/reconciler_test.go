@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	frameworkcontroller "github.com/nginxinc/gateway-lens/internal/k8s/framework/controller"
+	frameworkcontroller "github.com/nginx/gateway-lens/internal/k8s/framework/controller"
 )
 
 var errConnectionRefused = errors.New("connection refused")

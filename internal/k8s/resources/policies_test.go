@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	frameworkcontroller "github.com/nginxinc/gateway-lens/internal/k8s/framework/controller"
-	"github.com/nginxinc/gateway-lens/internal/k8s/resources"
-	"github.com/nginxinc/gateway-lens/internal/topology"
+	frameworkcontroller "github.com/nginx/gateway-lens/internal/k8s/framework/controller"
+	"github.com/nginx/gateway-lens/internal/k8s/resources"
+	"github.com/nginx/gateway-lens/internal/topology"
 )
 
 const (

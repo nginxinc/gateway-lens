@@ -1,4 +1,4 @@
-module github.com/nginxinc/gateway-lens
+module github.com/nginx/gateway-lens
 
 go 1.26.0
 
