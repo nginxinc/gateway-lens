@@ -21,7 +21,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"github.com/nginxinc/gateway-lens/internal/topology"
+	"github.com/nginx/gateway-lens/internal/topology"
 )
 
 const msgServiceNotFound = "The Service does not exist."

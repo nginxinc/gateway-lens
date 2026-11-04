@@ -38,7 +38,7 @@ import (
 	ctlrlog "sigs.k8s.io/controller-runtime/pkg/log"
 	ctlrZap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/nginxinc/gateway-lens/internal/k8s/manager"
+	"github.com/nginx/gateway-lens/internal/k8s/manager"
 )
 
 const (

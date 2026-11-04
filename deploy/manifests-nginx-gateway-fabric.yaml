@@ -123,7 +123,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: gateway-lens
-          image: "ghcr.io/nginxinc/gateway-lens:0.4.0"
+          image: "ghcr.io/nginx/gateway-lens:0.4.0"
           imagePullPolicy: IfNotPresent
           args:
             - --port=8080

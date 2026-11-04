@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/nginxinc/gateway-lens/internal/app"
-	"github.com/nginxinc/gateway-lens/internal/k8s/resources"
+	"github.com/nginx/gateway-lens/internal/app"
+	"github.com/nginx/gateway-lens/internal/k8s/resources"
 )
 
 // Manager wraps a controller-runtime manager for this process.

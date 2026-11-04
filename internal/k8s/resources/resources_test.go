@@ -30,9 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	frameworkevents "github.com/nginxinc/gateway-lens/internal/k8s/framework/events"
-	"github.com/nginxinc/gateway-lens/internal/k8s/resources"
-	"github.com/nginxinc/gateway-lens/internal/topology"
+	frameworkevents "github.com/nginx/gateway-lens/internal/k8s/framework/events"
+	"github.com/nginx/gateway-lens/internal/k8s/resources"
+	"github.com/nginx/gateway-lens/internal/topology"
 )
 
 var errListFailed = errors.New("list failed")

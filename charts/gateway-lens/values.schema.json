@@ -41,7 +41,7 @@
           "title": "pullPolicy"
         },
         "repository": {
-          "default": "ghcr.io/nginxinc/gateway-lens",
+          "default": "ghcr.io/nginx/gateway-lens",
           "description": "The gateway-lens container image repository.",
           "title": "repository",
           "type": "string"

@@ -10,7 +10,7 @@ Kubernetes cluster.
 ## Installing
 
 ```sh
-helm install gateway-lens oci://ghcr.io/nginxinc/charts/gateway-lens
+helm install gateway-lens oci://ghcr.io/nginx/charts/gateway-lens
 ```
 
 This installs Gateway Lens into the current namespace, exposed via a
@@ -76,7 +76,7 @@ rbac:
 | basePath | string | `""` | URL path prefix the dashboard is served under, for deployments behind a reverse proxy or Gateway route mounted at a sub-path. Passed to the container as `--base-path`. Leave empty to serve at the root path. |
 | extraArgs | list | `[]` | Extra CLI args passed to the container. |
 | image.pullPolicy | string | `"IfNotPresent"` | The image pull policy for the gateway-lens container. |
-| image.repository | string | `"ghcr.io/nginxinc/gateway-lens"` | The gateway-lens container image repository. |
+| image.repository | string | `"ghcr.io/nginx/gateway-lens"` | The gateway-lens container image repository. |
 | image.tag | string | The chart's appVersion. | The gateway-lens container image tag. |
 | logLevel | string | `"info"` | Log level for the controller. Passed to the container as `--log-level`. |
 | namespaces | list | `[]` | List of namespaces to watch. If empty, all namespaces are watched. Passed to the container as a comma-separated `--namespaces` flag. |

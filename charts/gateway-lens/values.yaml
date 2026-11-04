@@ -5,7 +5,7 @@ replicaCount: 1
 
 image:
   # -- The gateway-lens container image repository.
-  repository: ghcr.io/nginxinc/gateway-lens
+  repository: ghcr.io/nginx/gateway-lens
   # -- The gateway-lens container image tag.
   # @default -- The chart's appVersion.
   tag: ""
